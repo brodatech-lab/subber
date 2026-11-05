@@ -1,11 +1,19 @@
 import { useEffect, useRef, useState, type FC } from 'react'
-import { Film } from 'lucide-react'
+import { Film, Maximize, Minimize, Pause, Play } from 'lucide-react'
 import { useProject } from '@/store/project'
-import { registerVideo } from '@/lib/player'
+import { useView } from '@/store/view'
+import { registerVideo, togglePlay } from '@/lib/player'
+import { toDisplayTime } from '@/lib/time'
+import { cn } from '@/lib/cn'
 import { SubtitleOverlay } from '@/ui/molecules/subtitle-overlay'
 import { Button } from '@/ui/atoms/button'
 
 type PreviewProps = { src: string | null; onImport: () => void }
+
+type Size = { width: number; height: number }
+
+const FRAME_GUTTER = 24
+const CONTROLS_HIDE_MS = 2200
 
 const useActiveCue = () => {
   const cues = useProject((s) => s.cues)
@@ -13,52 +21,123 @@ const useActiveCue = () => {
   return { cue: cues.find((c) => time >= c.start && time < c.end), time }
 }
 
+/** Largest frame with the video's aspect ratio that fits the stage, like object-fit: contain. */
+const useContainedSize = (stage: HTMLElement | null, video: Size | null, gutter: number): Size | null => {
+  const [size, setSize] = useState<Size | null>(null)
+  useEffect(() => {
+    if (!stage || !video) return
+    const fit = () => {
+      const width = Math.max(0, stage.clientWidth - gutter * 2)
+      const height = Math.max(0, stage.clientHeight - gutter * 2)
+      const scale = Math.min(width / video.width, height / video.height)
+      setSize({ width: Math.floor(video.width * scale), height: Math.floor(video.height * scale) })
+    }
+    fit()
+    const observer = new ResizeObserver(fit)
+    observer.observe(stage)
+    return () => observer.disconnect()
+  }, [stage, video, gutter])
+  return size
+}
+
+const usePlaying = (video: HTMLVideoElement | null) => {
+  const [playing, setPlaying] = useState(false)
+  useEffect(() => {
+    if (!video) return
+    const sync = () => setPlaying(!video.paused)
+    video.addEventListener('play', sync)
+    video.addEventListener('pause', sync)
+    return () => {
+      video.removeEventListener('play', sync)
+      video.removeEventListener('pause', sync)
+    }
+  }, [video])
+  return playing
+}
+
+/** Controls fade out after the mouse rests, and come back on any movement. */
+const useIdle = (active: boolean) => {
+  const [idle, setIdle] = useState(false)
+  const timer = useRef<number>(0)
+  const wake = () => {
+    setIdle(false)
+    window.clearTimeout(timer.current)
+    timer.current = window.setTimeout(() => setIdle(true), CONTROLS_HIDE_MS)
+  }
+  useEffect(() => {
+    if (!active) setIdle(false)
+    return () => window.clearTimeout(timer.current)
+  }, [active])
+  return { idle: active && idle, wake }
+}
+
+const FullscreenBar: FC<{ playing: boolean; hidden: boolean }> = ({ playing, hidden }) => {
+  const time = useProject((s) => s.playhead)
+  const duration = useProject((s) => s.video?.duration ?? 0)
+  const exit = useView((s) => s.setFullscreen)
+  return (
+    <div
+      className={cn(
+        'absolute inset-x-0 bottom-0 flex items-center gap-3 bg-gradient-to-t from-black/80 to-transparent px-6 pt-10 pb-5 transition-opacity duration-300',
+        hidden && 'pointer-events-none opacity-0',
+      )}
+    >
+      <Button intent="primary" size="icon" className="w-12" onClick={togglePlay} aria-label={playing ? 'Pauza' : 'Odtwórz'}>
+        {playing ? <Pause className="size-4" fill="currentColor" /> : <Play className="size-4" fill="currentColor" />}
+      </Button>
+      <span className="font-mono text-[13px] text-white tabular-nums">
+        {toDisplayTime(time)} <span className="text-white/50">/ {toDisplayTime(duration)}</span>
+      </span>
+      <div className="flex-1" />
+      <Button intent="ghost" size="sm" className="text-white hover:bg-white/10 hover:text-white" onClick={() => exit(false)}>
+        <Minimize className="size-4" /> Zamknij pełny ekran
+        <kbd className="ml-1 rounded-sm bg-white/15 px-1 font-mono text-[10px]">Esc</kbd>
+      </Button>
+    </div>
+  )
+}
+
 export const Preview: FC<PreviewProps> = ({ src, onImport }) => {
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const frameRef = useRef<HTMLDivElement>(null)
-  const [scale, setScale] = useState(1)
+  const [videoEl, setVideoEl] = useState<HTMLVideoElement | null>(null)
+  const [stage, setStage] = useState<HTMLDivElement | null>(null)
   const video = useProject((s) => s.video)
   const style = useProject((s) => s.style)
   const setPlayhead = useProject((s) => s.setPlayhead)
+  const fullscreen = useView((s) => s.fullscreen)
+  const toggleFullscreen = useView((s) => s.toggleFullscreen)
   const { cue, time } = useActiveCue()
+  const frame = useContainedSize(stage, video, fullscreen ? 0 : FRAME_GUTTER)
+  const playing = usePlaying(videoEl)
+  const { idle, wake } = useIdle(fullscreen)
 
   useEffect(() => {
-    registerVideo(videoRef.current)
+    registerVideo(videoEl)
     return () => registerVideo(null)
-  }, [src])
+  }, [videoEl])
 
   // Playhead follows the video at display rate while playing.
   useEffect(() => {
-    const el = videoRef.current
-    if (!el) return
+    if (!videoEl) return
     let raf = 0
     const tick = () => {
-      setPlayhead(el.currentTime)
+      setPlayhead(videoEl.currentTime)
       raf = requestAnimationFrame(tick)
     }
     const start = () => (raf = requestAnimationFrame(tick))
     const stop = () => {
       cancelAnimationFrame(raf)
-      setPlayhead(el.currentTime)
+      setPlayhead(videoEl.currentTime)
     }
-    el.addEventListener('play', start)
-    el.addEventListener('pause', stop)
-    el.addEventListener('seeked', stop)
+    videoEl.addEventListener('play', start)
+    videoEl.addEventListener('pause', stop)
+    videoEl.addEventListener('seeked', stop)
     return () => {
       cancelAnimationFrame(raf)
-      el.removeEventListener('play', start)
-      el.removeEventListener('pause', stop)
-      el.removeEventListener('seeked', stop)
+      videoEl.removeEventListener('play', start)
+      videoEl.removeEventListener('pause', stop)
+      videoEl.removeEventListener('seeked', stop)
     }
-  }, [src, setPlayhead])
-
-  useEffect(() => {
-    const frame = frameRef.current
-    if (!frame || !video) return
-    const observer = new ResizeObserver(() => setScale(frame.clientHeight / video.height))
-    observer.observe(frame)
-    return () => observer.disconnect()
-  }, [video])
+  }, [videoEl, setPlayhead])
 
   if (!src || !video) {
     return (
@@ -80,15 +159,44 @@ export const Preview: FC<PreviewProps> = ({ src, onImport }) => {
   }
 
   return (
-    <div className="grid h-full min-h-0 place-items-center p-6">
+    <div
+      ref={setStage}
+      onMouseMove={wake}
+      className={cn(
+        'group/stage grid min-h-0 place-items-center overflow-hidden',
+        fullscreen ? 'fixed inset-0 z-[60] bg-black' : 'relative h-full',
+        idle && 'cursor-none',
+      )}
+    >
       <div
-        ref={frameRef}
-        className="relative h-full max-h-full overflow-hidden rounded-md bg-black shadow-[0_0_0_1px_var(--color-border)]"
-        style={{ aspectRatio: `${video.width} / ${video.height}` }}
+        className={cn('relative overflow-hidden bg-black', !fullscreen && 'rounded-md shadow-[0_0_0_1px_var(--color-border)]')}
+        style={frame ? { width: frame.width, height: frame.height } : { visibility: 'hidden' }}
       >
-        <video ref={videoRef} src={src} className="size-full object-contain" preload="auto" />
-        <SubtitleOverlay cue={cue} time={time} style={style} scale={scale} />
+        <video
+          ref={setVideoEl}
+          src={src}
+          preload="auto"
+          onClick={togglePlay}
+          onDoubleClick={toggleFullscreen}
+          className="size-full cursor-pointer object-contain"
+        />
+        <SubtitleOverlay cue={cue} time={time} style={style} scale={frame ? frame.height / video.height : 1} />
       </div>
+
+      {fullscreen ? (
+        <FullscreenBar playing={playing} hidden={idle} />
+      ) : (
+        <Button
+          intent="secondary"
+          size="icon"
+          aria-label="Pełny ekran (F)"
+          title="Pełny ekran (F)"
+          onClick={toggleFullscreen}
+          className="absolute right-3 bottom-3 opacity-0 transition-opacity group-hover/stage:opacity-100 focus-visible:opacity-100"
+        >
+          <Maximize className="size-4" />
+        </Button>
+      )}
     </div>
   )
 }

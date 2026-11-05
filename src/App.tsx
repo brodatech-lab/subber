@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FC } from 'react'
 import { useProject } from '@/store/project'
+import { useView } from '@/store/view'
 import { isTauri, loadPeaks, pickVideo, readVideoInfo, videoSrc } from '@/lib/bridge'
 import { seek, togglePlay } from '@/lib/player'
 import { TopBar } from '@/ui/organisms/top-bar'
@@ -18,7 +19,12 @@ const useShortcuts = () => {
       if (isTyping(e.target)) return
       const s = useProject.getState()
       const mod = e.ctrlKey || e.metaKey
-      if (e.code === 'Space') {
+      const view = useView.getState()
+      if (e.key === 'Escape' && view.fullscreen) {
+        view.setFullscreen(false)
+      } else if (e.key.toLowerCase() === 'f' && !mod && s.video) {
+        view.toggleFullscreen()
+      } else if (e.code === 'Space') {
         e.preventDefault()
         togglePlay()
       } else if (mod && e.key.toLowerCase() === 'z') {
@@ -38,8 +44,16 @@ const useShortcuts = () => {
         seek(s.playhead + (e.shiftKey ? 1 : 0.1))
       }
     }
+    // In a plain browser the user can leave fullscreen with the browser's own Esc; keep the state in sync.
+    const onFullscreenChange = () => {
+      if (!document.fullscreenElement) useView.getState().setFullscreen(false)
+    }
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    document.addEventListener('fullscreenchange', onFullscreenChange)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.removeEventListener('fullscreenchange', onFullscreenChange)
+    }
   }, [])
 }
 

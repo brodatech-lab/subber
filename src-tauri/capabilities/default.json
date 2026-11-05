@@ -3,5 +3,5 @@
   "identifier": "default",
   "description": "Main window: file dialogs and the app's own commands",
   "windows": ["main"],
-  "permissions": ["core:default", "dialog:allow-open", "dialog:allow-save"]
+  "permissions": ["core:default", "core:window:allow-set-fullscreen", "dialog:allow-open", "dialog:allow-save"]
 }
