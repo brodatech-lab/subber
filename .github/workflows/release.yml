@@ -13,10 +13,6 @@ concurrency:
   group: release
   cancel-in-progress: false
 
-env:
-  # Static GPL build with libass, needed to burn subtitles into video.
-  FFMPEG_URL: https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n7.1-latest-win64-gpl-7.1.zip
-
 jobs:
   build:
     runs-on: windows-latest
@@ -56,13 +52,22 @@ jobs:
           echo "previous=$previous" >> "$GITHUB_OUTPUT"
           echo "Building $tag (previous: ${previous:-none})"
 
+      # Static GPL build with libass, needed to burn subtitles into video. BtbN renames the stable
+      # assets as versions age, so pick the newest "nX.Y-latest" one and fall back to master.
       - name: Bundle ffmpeg
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          curl -fsSL "$FFMPEG_URL" -o ffmpeg.zip
+          url=$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/tags/latest \
+            | node -e "const a=JSON.parse(require('fs').readFileSync(0,'utf8')).assets.map(x=>x.browser_download_url);const s=a.filter(u=>/ffmpeg-n[\d.]+-latest-win64-gpl-[\d.]+\.zip$/.test(u)).sort().pop();console.log(s||a.find(u=>u.endsWith('ffmpeg-master-latest-win64-gpl.zip'))||'')")
+          if [ -z "$url" ]; then echo "No ffmpeg build found"; exit 1; fi
+          echo "ffmpeg: $url"
+          curl -fsSL "$url" -o ffmpeg.zip
           unzip -q ffmpeg.zip -d ffmpeg
           mkdir -p src-tauri/binaries
           cp "$(find ffmpeg -name ffmpeg.exe | head -n 1)" src-tauri/binaries/ffmpeg-x86_64-pc-windows-msvc.exe
-          src-tauri/binaries/ffmpeg-x86_64-pc-windows-msvc.exe -hide_banner -filters | grep -q ' ass ' || { echo "ffmpeg without libass"; exit 1; }
+          filters=$(src-tauri/binaries/ffmpeg-x86_64-pc-windows-msvc.exe -hide_banner -filters)
+          if ! grep -q ' ass ' <<< "$filters"; then echo "ffmpeg without libass"; exit 1; fi
 
       - name: Build installer
         run: npx tauri build --config src-tauri/tauri.release.conf.json
