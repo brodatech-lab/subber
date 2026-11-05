@@ -8,6 +8,7 @@ Każdy push na `master` buduje instalator i wrzuca go do Releases. Opis paczki s
 
 ### Dodane
 - Automatyczne paczki na Windows w Releases po każdym pushu na `master`, z opisem zmian.
+- README osobno po polsku (`README.md`) i po angielsku (`README.en.md`).
 
 ## 0.1.0 - 2026-11-05
 

@@ -1,10 +1,10 @@
 # Subber
 
+**Polski** · [English](README.en.md)
+
 Wrzucasz film, dostajesz napisy. Poprawiasz je na osi czasu, ustawiasz styl i eksportujesz.
 
 Zrobiłem Subbera, bo miałem dość płacenia za edytory napisów w chmurze i wysyłania im każdego nagrania. Tu wszystko dzieje się na Twoim komputerze. Model Whisper liczy na karcie graficznej, plik nigdzie nie wychodzi.
-
-*English version below.*
 
 ## Co potrafi
 
@@ -80,46 +80,3 @@ Klucze do OpenAI i Deepgrama trzymam w Menedżerze poświadczeń Windows, nie w 
 - Na razie tylko Windows.
 
 Co się zmienia między wersjami, znajdziesz w [CHANGELOG.md](CHANGELOG.md).
-
----
-
-## English
-
-Drop in a video and get subtitles back. Fix them on the timeline, style them, export.
-
-I built Subber because I was tired of paying for cloud caption editors and uploading every recording to them. Here everything runs on your machine. Whisper runs on your GPU and the file never leaves your disk.
-
-### What it does
-
-- Transcribes speech. faster-whisper large-v3 on the GPU by default. WhisperX is there too, and OpenAI or Deepgram if you prefer the cloud.
-- Puts the captions on a timeline next to the waveform. Drag them, stretch them, cut them with S.
-- Lets you fix text and times in the list on the left. Ctrl+Z undoes everything.
-- Never lets one caption hold the end of one sentence and the start of the next, so the text does not fall behind the voice.
-- Highlights the word being spoken, like in short-form videos.
-- Styles from the right panel: font, color, background, outline, shadow, animation. Save a look as a preset.
-- Exports SRT, VTT, ASS, or an MP4 with burned-in captions. Vertical 9:16 works.
-
-### Install
-
-Grab the installer from [Releases](https://github.com/brodatech-lab/subber/releases). It ships with ffmpeg.
-
-You also need Python 3.10 or newer. On the first transcription Subber sets up its own environment and downloads the model. That is a one-time download of a few GB.
-
-An NVIDIA card with CUDA 12 helps a lot. Without one it still works on the CPU, just slower.
-
-### Build from source
-
-```bash
-npm install
-npm run tauri dev
-```
-
-`npm run dev` runs the UI alone in a browser with a fake transcription. `npm test` runs the tests, `npm run tauri build` builds the installer.
-
-### Not there yet
-
-- Rounded caption backgrounds only show in the preview. The exported MP4 gets a square box, and the outline is dropped when the background is on.
-- Translation.
-- Platforms other than Windows.
-
-Changes between versions are in [CHANGELOG.md](CHANGELOG.md).
