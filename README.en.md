@@ -75,7 +75,7 @@ OpenAI and Deepgram keys live in the Windows Credential Manager, not in files.
 
 ## Not there yet
 
-- Rounded caption backgrounds only show in the preview. The exported MP4 gets a square box, and the outline is dropped when the background is on. That is a limit of the ASS format. I know the workaround, just have not built it yet.
+- Rounded caption backgrounds only show in the preview. The exported MP4 gets a square box, because that is how the ASS format draws it. I know the workaround, just have not built it yet.
 - Translation.
 - Platforms other than Windows.
 

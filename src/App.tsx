@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FC } from 'react'
 import { useProject } from '@/store/project'
-import { useView } from '@/store/view'
+import { syncWithWindowFullscreen, useView } from '@/store/view'
 import { isTauri, loadPeaks, pickVideo, readVideoInfo, videoSrc } from '@/lib/bridge'
 import { seek, togglePlay } from '@/lib/player'
 import { TopBar } from '@/ui/organisms/top-bar'
@@ -15,14 +15,20 @@ const isTyping = (target: EventTarget | null) =>
 
 const useShortcuts = () => {
   useEffect(() => {
+    // Esc leaves fullscreen even from a text field and before any child handler can stop the event,
+    // so it runs in the capture phase.
+    const onEscape = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || !useView.getState().fullscreen) return
+      e.preventDefault()
+      e.stopPropagation()
+      useView.getState().setFullscreen(false)
+    }
     const onKey = (e: KeyboardEvent) => {
       if (isTyping(e.target)) return
       const s = useProject.getState()
       const mod = e.ctrlKey || e.metaKey
       const view = useView.getState()
-      if (e.key === 'Escape' && view.fullscreen) {
-        view.setFullscreen(false)
-      } else if (e.key.toLowerCase() === 'f' && !mod && s.video) {
+      if (e.key.toLowerCase() === 'f' && !mod && s.video) {
         view.toggleFullscreen()
       } else if (e.code === 'Space') {
         e.preventDefault()
@@ -48,11 +54,15 @@ const useShortcuts = () => {
     const onFullscreenChange = () => {
       if (!document.fullscreenElement) useView.getState().setFullscreen(false)
     }
+    window.addEventListener('keydown', onEscape, true)
     window.addEventListener('keydown', onKey)
     document.addEventListener('fullscreenchange', onFullscreenChange)
+    const stopWindowSync = syncWithWindowFullscreen()
     return () => {
+      window.removeEventListener('keydown', onEscape, true)
       window.removeEventListener('keydown', onKey)
       document.removeEventListener('fullscreenchange', onFullscreenChange)
+      stopWindowSync()
     }
   }, [])
 }

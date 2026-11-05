@@ -10,7 +10,12 @@ Każdy push na `master` buduje instalator i wrzuca go do Releases. Opis paczki s
 - Automatyczne paczki na Windows w Releases po każdym pushu na `master`, z opisem zmian.
 - README osobno po polsku (`README.md`) i po angielsku (`README.en.md`).
 
+- Pełny ekran podglądu: przycisk w rogu, klawisz F albo dwuklik na filmie. Esc wychodzi.
+- Folder silnika i modeli do wybrania w oknie generowania napisów, z kontrolą wolnego miejsca.
+
 ### Poprawione
+- Wypalone napisy z podświetlonym słowem nie mają już ciemnej pionowej kreski, która przesuwała się po tekście. Przy włączonym tle w MP4 widać teraz też obrys.
+- Podgląd poziomych filmów mieści się w oknie i stoi na środku, także przy małym oknie.
 - Program nie wywala się już przy dużych filmach. Fala dźwięku liczy się teraz strumieniowo przez ffmpeg, plik 1 GB to 1,7 s i kilka MB pamięci. Wcześniej cały plik ładował się do RAM.
 
 ## 0.1.0 - 2026-11-05

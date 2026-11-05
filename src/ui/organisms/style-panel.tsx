@@ -245,11 +245,6 @@ export const StylePanel: FC = () => {
         <Slider label="Grubość" value={style.outline.width} min={0} max={12} suffix="px" onChange={(v) => setStyle({ outline: { ...style.outline, width: v } })} />
         <ColorField label="Cień" value={style.shadow.color} onChange={(v) => setStyle({ shadow: { ...style.shadow, color: v } })} />
         <Slider label="Odległość" value={style.shadow.distance} min={0} max={12} suffix="px" onChange={(v) => setStyle({ shadow: { ...style.shadow, distance: v } })} />
-        {style.bg.opacity > 0 && style.outline.width > 0 && (
-          <p className="text-[11px] text-pretty text-muted">
-            W eksporcie wideo przy włączonym tle obrys jest pomijany (ograniczenie formatu ASS).
-          </p>
-        )}
       </PanelSection>
 
       <PanelSection title="Animacja">

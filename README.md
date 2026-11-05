@@ -75,7 +75,7 @@ Klucze do OpenAI i Deepgrama trzymam w Menedżerze poświadczeń Windows, nie w 
 
 ## Czego jeszcze nie ma
 
-- Zaokrąglone tło widać tylko w podglądzie. W gotowym MP4 jest prostokątne, a przy włączonym tle obrys znika. To ograniczenie formatu ASS. Wiem, jak to obejść, jeszcze tego nie zrobiłem.
+- Zaokrąglone tło widać tylko w podglądzie. W gotowym MP4 jest prostokątne, bo tak rysuje je format ASS. Wiem, jak to obejść, jeszcze tego nie zrobiłem.
 - Tłumaczenie napisów na inne języki.
 - Na razie tylko Windows.
 

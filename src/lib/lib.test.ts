@@ -77,10 +77,25 @@ describe('formats', () => {
     expect(assColor('#FF8800', 1)).toBe('&H000088FF')
     expect(assColor('#000000', 0.8)).toBe('&H33000000')
   })
-  it('ass emits one event per word when highlighting', () => {
+  it('ass emits one text event per word and one background per cue', () => {
     const ass = toAss(cues, DEFAULT_STYLE, { width: 1080, height: 1920 })
     const events = ass.split('\n').filter((l) => l.startsWith('Dialogue'))
-    expect(events).toHaveLength(words.length)
+    expect(events.filter((e) => e.includes(',Text,'))).toHaveLength(words.length)
+    expect(events.filter((e) => e.includes(',Box,'))).toHaveLength(cues.length)
     expect(ass).toContain('PlayResY: 1920')
+  })
+  it('ass background layer has no color runs, so boxes never overlap into a seam', () => {
+    const ass = toAss(cues, DEFAULT_STYLE, { width: 1080, height: 1920 })
+    const boxes = ass.split('\n').filter((l) => l.startsWith('Dialogue: 0,') && l.includes(',Box,'))
+    expect(boxes.length).toBeGreaterThan(0)
+    boxes.forEach((line) => expect(line).not.toContain('\\c'))
+    expect(ass).toMatch(/^Style: Box,.*,3,10,0,/m)
+    expect(ass).toMatch(/^Style: Text,.*,1,0,0,/m)
+  })
+  it('ass skips the background layer when the background is off', () => {
+    const style = { ...DEFAULT_STYLE, bg: { ...DEFAULT_STYLE.bg, opacity: 0 } }
+    const ass = toAss(cues, style, { width: 1080, height: 1920 })
+    expect(ass).not.toContain('Style: Box')
+    expect(ass).not.toContain(',Box,')
   })
 })
