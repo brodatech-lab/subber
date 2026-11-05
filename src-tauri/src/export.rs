@@ -7,7 +7,7 @@ use tauri::ipc::Channel;
 use tauri::path::BaseDirectory;
 use tauri::{AppHandle, Manager};
 
-use crate::tools::{ffmpeg, hidden_command};
+use crate::tools::{ffmpeg, hidden_command, log_error};
 
 #[derive(Clone, Serialize)]
 pub struct ExportProgress {
@@ -90,7 +90,12 @@ pub async fn burn_subtitles(
     on_progress: Channel<ExportProgress>,
 ) -> Result<(), String> {
     let fonts = app.path().resolve("fonts", BaseDirectory::Resource).map_err(|e| e.to_string())?;
-    tauri::async_runtime::spawn_blocking(move || burn(&fonts, &input, &output, &ass, duration, &on_progress))
+    let result = tauri::async_runtime::spawn_blocking(move || burn(&fonts, &input, &output, &ass, duration, &on_progress))
         .await
-        .map_err(|e| e.to_string())?
+        .map_err(|e| e.to_string())
+        .and_then(|r| r);
+    if let Err(message) = &result {
+        log_error(&app, "eksport wideo", message);
+    }
+    result
 }

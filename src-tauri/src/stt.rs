@@ -7,7 +7,7 @@ use tauri::ipc::Channel;
 use tauri::{AppHandle, Manager};
 
 use crate::secrets;
-use crate::tools::{ffmpeg, hidden_command, system_ca_bundle, system_python, venv_python, with_system_ca};
+use crate::tools::{ffmpeg, hidden_command, log_error, system_ca_bundle, system_python, venv_python, with_system_ca};
 
 const WORKER_SOURCE: &str = include_str!("../../engine/stt_worker.py");
 
@@ -192,7 +192,14 @@ fn run_worker(app: &AppHandle, path: &str, config: &SttConfig, channel: &Channel
 
 #[tauri::command]
 pub async fn transcribe(app: AppHandle, path: String, config: SttConfig, on_progress: Channel<Progress>) -> Result<Vec<Word>, String> {
-    tauri::async_runtime::spawn_blocking(move || run_worker(&app, &path, &config, &on_progress))
+    let handle = app.clone();
+    let engine = config.engine.clone();
+    let result = tauri::async_runtime::spawn_blocking(move || run_worker(&app, &path, &config, &on_progress))
         .await
-        .map_err(|e| e.to_string())?
+        .map_err(|e| e.to_string())
+        .and_then(|r| r);
+    if let Err(message) = &result {
+        log_error(&handle, &format!("transkrypcja ({engine})"), message);
+    }
+    result
 }

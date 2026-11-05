@@ -96,9 +96,14 @@ export const AutoSubtitleDialog: FC<{ open: boolean; onClose: () => void }> = ({
   const [error, setError] = useState<string | null>(null)
   const running = progress !== null
 
+  // Clear a previous error only when the dialog opens. This used to live in the effect below, which also
+  // re-runs when `running` flips back to false, so the error was wiped the moment it appeared.
+  useEffect(() => {
+    if (open) setError(null)
+  }, [open])
+
   useEffect(() => {
     if (!open) return
-    setError(null)
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && !running && onClose()
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -207,7 +212,12 @@ export const AutoSubtitleDialog: FC<{ open: boolean; onClose: () => void }> = ({
             </div>
           </div>
         )}
-        {error && <p className="rounded-md bg-danger/10 px-3 py-2 text-xs text-pretty text-danger">{error}</p>}
+        {error && (
+          <div className="grid gap-1.5 rounded-md bg-danger/10 px-3 py-2" role="alert">
+            <p className="max-h-40 overflow-y-auto font-mono text-[11px] whitespace-pre-wrap text-danger select-text">{error}</p>
+            <p className="text-[11px] text-muted">Pełny log: %APPDATA%\com.subber.app\subber.log</p>
+          </div>
+        )}
 
         <div className="grid gap-2">
           <Button intent="primary" size="lg" full onClick={run} disabled={running}>

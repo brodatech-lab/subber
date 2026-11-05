@@ -114,6 +114,22 @@ pub fn with_system_ca<'a>(cmd: &'a mut Command, bundle: Option<&Path>) -> &'a mu
     cmd
 }
 
+/// Appends an error to %APPDATA%\com.subber.app\subber.log, so a failure can be read after the fact.
+/// Logging must never break the command itself, so its own failures are ignored.
+pub fn log_error(app: &tauri::AppHandle, context: &str, message: &str) {
+    use std::io::Write as _;
+    use tauri::Manager as _;
+    let Ok(dir) = app.path().app_data_dir() else { return };
+    let _ = std::fs::create_dir_all(&dir);
+    let seconds = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or_default();
+    if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(dir.join("subber.log")) {
+        let _ = writeln!(file, "[{seconds}] {context}: {message}\n");
+    }
+}
+
 pub fn venv_python(venv: &Path) -> PathBuf {
     if cfg!(windows) { venv.join("Scripts").join("python.exe") } else { venv.join("bin").join("python") }
 }
