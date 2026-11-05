@@ -176,11 +176,15 @@ const Waveform: FC<{ peaks: Float32Array | null; pps: number; scrollLeft: number
     const styles = getComputedStyle(document.documentElement)
     ctx.fillStyle = styles.getPropertyValue('--color-foreground').trim() || '#fff'
     const mid = WAVE_H - 4
+    const perSecond = peaks.length / duration
     for (let x = 0; x < viewWidth; x++) {
       const t = (scrollLeft + x) / pps
       if (t > duration) break
-      const index = Math.floor((t / duration) * peaks.length)
-      const v = peaks[index] ?? 0
+      // A pixel can span several peaks when zoomed out; draw the loudest so short sounds don't vanish.
+      const from = Math.floor(t * perSecond)
+      const to = Math.max(from + 1, Math.floor(((scrollLeft + x + 1) / pps) * perSecond))
+      let v = 0
+      for (let i = from; i < to && i < peaks.length; i++) v = Math.max(v, peaks[i] ?? 0)
       const h = Math.max(1, v * (WAVE_H - 10))
       ctx.fillRect(x, mid - h, 1, h)
     }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FC } from 'react'
 import { useProject } from '@/store/project'
-import { computePeaks, isTauri, pickVideo, readVideoInfo, videoSrc } from '@/lib/bridge'
+import { isTauri, loadPeaks, pickVideo, readVideoInfo, videoSrc } from '@/lib/bridge'
 import { seek, togglePlay } from '@/lib/player'
 import { TopBar } from '@/ui/organisms/top-bar'
 import { Preview } from '@/ui/organisms/preview'
@@ -8,8 +8,6 @@ import { SubtitleList } from '@/ui/organisms/subtitle-list'
 import { StylePanel } from '@/ui/organisms/style-panel'
 import { Timeline } from '@/ui/organisms/timeline'
 import { AutoSubtitleDialog } from '@/ui/organisms/auto-subtitle-dialog'
-
-const PEAK_BUCKETS = 8000
 
 const isTyping = (target: EventTarget | null) =>
   target instanceof HTMLElement && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)
@@ -59,14 +57,14 @@ export const App: FC = () => {
     return () => clearTimeout(id)
   }, [toast])
 
-  const load = useCallback(async (path: string, url: string) => {
+  const load = useCallback(async (path: string, url: string, sizeBytes?: number) => {
     try {
       const info = await readVideoInfo(path, url)
       useProject.getState().setVideo(info)
       setSrc(url)
       setPeaks(null)
       setDialogOpen(true)
-      computePeaks(url, PEAK_BUCKETS)
+      loadPeaks(path, url, sizeBytes)
         .then(setPeaks)
         .catch(() => setToast('Nie udało się odczytać ścieżki audio do podglądu fali.'))
     } catch (e) {
@@ -116,7 +114,7 @@ export const App: FC = () => {
         hidden
         onChange={(e) => {
           const file = e.target.files?.[0]
-          if (file) void load(file.name, URL.createObjectURL(file))
+          if (file) void load(file.name, URL.createObjectURL(file), file.size)
           e.target.value = ''
         }}
       />

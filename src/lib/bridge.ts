@@ -124,8 +124,24 @@ export const burnIn = async (
   return output
 }
 
-/** Decodes the audio track in the webview and returns normalized peaks for the waveform. */
-export const computePeaks = async (src: string, buckets: number): Promise<Float32Array> => {
+/** Above this size the browser-only fallback skips the waveform; decoding would load the whole file into memory. */
+const BROWSER_WAVEFORM_LIMIT_BYTES = 300 * 1024 * 1024
+const BROWSER_PEAK_BUCKETS = 8000
+
+/**
+ * Normalized waveform peaks for the timeline, or null when they cannot be computed cheaply.
+ * The desktop app streams the audio through ffmpeg in Rust, so file size does not matter there.
+ */
+export const loadPeaks = async (path: string, src: string, sizeBytes?: number): Promise<Float32Array | null> => {
+  if (isTauri()) {
+    const { invoke } = await import('@tauri-apps/api/core')
+    return Float32Array.from(await invoke<number[]>('waveform_peaks', { path }))
+  }
+  if (sizeBytes !== undefined && sizeBytes > BROWSER_WAVEFORM_LIMIT_BYTES) return null
+  return decodePeaksInBrowser(src, BROWSER_PEAK_BUCKETS)
+}
+
+const decodePeaksInBrowser = async (src: string, buckets: number): Promise<Float32Array> => {
   const buffer = await fetch(src).then((r) => r.arrayBuffer())
   const ctx = new OfflineAudioContext(1, 1, 8000)
   const audio = await ctx.decodeAudioData(buffer)

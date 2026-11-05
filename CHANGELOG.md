@@ -10,6 +10,9 @@ Każdy push na `master` buduje instalator i wrzuca go do Releases. Opis paczki s
 - Automatyczne paczki na Windows w Releases po każdym pushu na `master`, z opisem zmian.
 - README osobno po polsku (`README.md`) i po angielsku (`README.en.md`).
 
+### Poprawione
+- Program nie wywala się już przy dużych filmach. Fala dźwięku liczy się teraz strumieniowo przez ffmpeg, plik 1 GB to 1,7 s i kilka MB pamięci. Wcześniej cały plik ładował się do RAM.
+
 ## 0.1.0 - 2026-11-05
 
 Pierwsza wersja.

@@ -2,6 +2,7 @@ mod export;
 mod secrets;
 mod stt;
 mod tools;
+mod waveform;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -13,6 +14,7 @@ pub fn run() {
             export::burn_subtitles,
             secrets::set_api_key,
             secrets::has_api_key,
+            waveform::waveform_peaks,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Subber");
