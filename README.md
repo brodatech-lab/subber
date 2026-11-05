@@ -54,14 +54,15 @@ Testy uruchamiasz przez `npm test`, a instalator budujesz przez `npm run tauri b
 
 ## Wydania
 
-Każdy push na `master` odpala GitHub Actions. Workflow buduje instalator z ffmpeg w środku i wrzuca go do Releases jako `v<wersja>-build.<numer>`.
+Zwykłe pushe na `master` niczego nie budują. Paczka powstaje tylko z tagu wersji, na przykład `v0.2.0`. Wtedy GitHub Actions buduje instalator z ffmpeg w środku i wrzuca go do Releases.
 
-Opis paczki składa się sam, z dwóch źródeł:
+Opis paczki to sekcja tej wersji w [CHANGELOG.md](CHANGELOG.md), po polsku i po angielsku. Zmiany dopisuję na bieżąco do `Unreleased`. Przy wydaniu robię tak:
 
-- z sekcji `Unreleased` w [CHANGELOG.md](CHANGELOG.md),
-- z commitów od poprzedniej paczki. Te z `feat:` idą do „Co nowego”, reszta do „Co zmieniono”.
+1. Podbijam wersję w `package.json`, `src-tauri/tauri.conf.json` i `src-tauri/Cargo.toml`.
+2. Przenoszę `Unreleased` pod nowy numer, w obu językach.
+3. Commituję, wypycham i dodaję tag: `git tag v0.3.0 && git push origin v0.3.0`.
 
-Piszę więc commity tak: `feat: eksport do GIF`, `fix: napisy po kropce`. Przy nowej wersji podbijam numer w `src-tauri/tauri.conf.json` i `package.json`, a sekcję `Unreleased` przenoszę pod ten numer.
+Jeśli tag nie zgadza się z wersją albo w CHANGELOG brakuje sekcji, workflow się zatrzyma i nic nie wyda.
 
 ## Jak to jest zbudowane
 

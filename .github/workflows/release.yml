@@ -1,19 +1,17 @@
 name: Windows release
 
-# Every push to master builds the Windows installer and publishes it as a GitHub release.
+# Only a version tag (v0.2.0, v0.3.0, ...) builds the installer and publishes a release.
+# Ordinary pushes to master build nothing.
 on:
   push:
-    branches: [master]
-  workflow_dispatch:
+    tags: ['v*']
 
 permissions:
   contents: write
 
-# A newer push cancels a build still running. Nothing is lost: the next release notes list every commit
-# since the last published build.
 concurrency:
-  group: release
-  cancel-in-progress: true
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -23,8 +21,6 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -43,16 +39,18 @@ jobs:
       - name: Test
         run: npm test
 
-      - name: Version and tags
+      # The tag must match the app version, and the version must have a CHANGELOG section,
+      # so a release never ships with the wrong number or without a description.
+      - name: Check version
         id: meta
         run: |
           version=$(node -p "require('./src-tauri/tauri.conf.json').version")
-          tag="v${version}-build.${GITHUB_RUN_NUMBER}"
-          previous=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || true)
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match tauri.conf.json version $version"; exit 1
+          fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          echo "previous=$previous" >> "$GITHUB_OUTPUT"
-          echo "Building $tag (previous: ${previous:-none})"
+          VERSION="$version" node scripts/release-notes.mjs release-notes.md
+          cat release-notes.md
 
       # Static GPL build with libass, needed to burn subtitles into video. BtbN renames the stable
       # assets as versions age, so pick the newest "nX.Y-latest" one and fall back to master.
@@ -74,17 +72,11 @@ jobs:
       - name: Build installer
         run: npx tauri build --config src-tauri/tauri.release.conf.json
 
-      - name: Release notes
-        env:
-          PREVIOUS_TAG: ${{ steps.meta.outputs.previous }}
-        run: node scripts/release-notes.mjs release-notes.md && cat release-notes.md
-
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.meta.outputs.tag }}
-          target_commitish: ${{ github.sha }}
-          name: Subber ${{ steps.meta.outputs.version }} (build ${{ github.run_number }})
+          tag_name: ${{ github.ref_name }}
+          name: Subber ${{ steps.meta.outputs.version }}
           body_path: release-notes.md
           make_latest: true
           files: src-tauri/target/release/bundle/nsis/*.exe

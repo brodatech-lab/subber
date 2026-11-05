@@ -54,14 +54,15 @@ npm run tauri dev
 
 ## Releases
 
-Every push to `master` triggers GitHub Actions. The workflow builds the installer with ffmpeg inside and publishes it to Releases as `v<version>-build.<number>`.
+Ordinary pushes to `master` build nothing. A package comes only from a version tag such as `v0.2.0`. Then GitHub Actions builds the installer with ffmpeg inside and publishes it to Releases.
 
-The release description writes itself from two sources:
+The release description is that version's section of [CHANGELOG.md](CHANGELOG.md), in Polish and English. Changes go into `Unreleased` as they happen. To release:
 
-- the `Unreleased` section of [CHANGELOG.md](CHANGELOG.md),
-- the commits since the previous build. `feat:` commits go under "Co nowego" (what's new), the rest under "Co zmieniono" (what changed).
+1. Bump the version in `package.json`, `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml`.
+2. Move `Unreleased` under the new number, in both languages.
+3. Commit, push and tag: `git tag v0.3.0 && git push origin v0.3.0`.
 
-So commits look like `feat: GIF export` or `fix: captions after a period`. For a new version, bump the number in `src-tauri/tauri.conf.json` and `package.json`, and move the `Unreleased` section under it.
+If the tag does not match the version or the CHANGELOG section is missing, the workflow stops and releases nothing.
 
 ## How it is built
 
