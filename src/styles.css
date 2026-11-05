@@ -1,0 +1,117 @@
+@import 'tailwindcss';
+@import '@fontsource/ibm-plex-sans/400.css';
+@import '@fontsource/ibm-plex-sans/500.css';
+@import '@fontsource/ibm-plex-sans/600.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+@import '@fontsource/montserrat/600.css';
+@import '@fontsource/montserrat/700.css';
+@import '@fontsource/montserrat/800.css';
+
+/*
+ * Subber – dark video-editor workspace.
+ * Graphite surfaces with a faint cool bias, amber for subtitle blocks (as in the concept),
+ * a single teal for primary actions and the active word. Dark only, by design.
+ */
+@theme {
+  --color-canvas: #0d0e10;
+  --color-surface: #141619;
+  --color-surface-raised: #1b1e22;
+  --color-surface-hover: #23272c;
+  --color-border: #2a2e34;
+  --color-border-strong: #3a3f47;
+  --color-foreground: #e7e9ec;
+  --color-muted: #8b929c;
+  --color-faint: #5d636c;
+  --color-cue: #e9a825;
+  --color-cue-edge: #b97f10;
+  --color-on-cue: #1c1403;
+  --color-brand: #1fe0d2;
+  --color-brand-strong: #17b8ac;
+  --color-on-brand: #04201d;
+  --color-danger: #ff6b63;
+  --color-playhead: #ffffff;
+
+  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  --color-wave: #163029;
+
+  --animate-grow: grow 140ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  @keyframes grow {
+    from {
+      transform: scale(0.85);
+    }
+    to {
+      transform: none;
+    }
+  }
+
+  --animate-enter: enter 160ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  @keyframes enter {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-canvas);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color-scheme: dark;
+  overflow: hidden;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+input,
+textarea,
+select,
+button {
+  font: inherit;
+  color: inherit;
+}
+
+input[type='text'],
+textarea {
+  user-select: text;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

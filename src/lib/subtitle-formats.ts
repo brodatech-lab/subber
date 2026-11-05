@@ -1,0 +1,120 @@
+import type { Cue, SubtitleStyle } from './types'
+import { toAssTime, toSrtTime, toVttTime } from './time'
+
+const applyCase = (text: string, mode: SubtitleStyle['textCase']): string =>
+  mode === 'upper' ? text.toUpperCase() : mode === 'lower' ? text.toLowerCase() : text
+
+export const toSrt = (cues: Cue[], textCase: SubtitleStyle['textCase'] = 'none'): string =>
+  cues
+    .map((cue, i) => `${i + 1}\n${toSrtTime(cue.start)} --> ${toSrtTime(cue.end)}\n${applyCase(cue.text, textCase)}\n`)
+    .join('\n')
+
+export const toVtt = (cues: Cue[], textCase: SubtitleStyle['textCase'] = 'none'): string =>
+  `WEBVTT\n\n${cues
+    .map((cue) => `${toVttTime(cue.start)} --> ${toVttTime(cue.end)}\n${applyCase(cue.text, textCase)}\n`)
+    .join('\n')}`
+
+/** `#RRGGBB` + opacity (0..1) → ASS `&HAABBGGRR`. */
+export const assColor = (hex: string, opacity = 1): string => {
+  const clean = hex.replace('#', '').padEnd(6, '0')
+  const r = clean.slice(0, 2)
+  const g = clean.slice(2, 4)
+  const b = clean.slice(4, 6)
+  const alpha = Math.round((1 - opacity) * 255)
+    .toString(16)
+    .padStart(2, '0')
+  return `&H${alpha}${b}${g}${r}`.toUpperCase()
+}
+
+const assOverrideColor = (hex: string): string => assColor(hex).replace(/^&H00/, '&H') + '&'
+
+const assAlignment = (style: SubtitleStyle): number => {
+  const row = style.vAlign === 'bottom' ? 0 : style.vAlign === 'middle' ? 3 : 6
+  const col = style.align === 'left' ? 1 : style.align === 'center' ? 2 : 3
+  return row + col
+}
+
+const escapeAss = (text: string): string => text.replace(/[{}]/g, '').replace(/\r?\n/g, '\\N')
+
+export type AssOptions = { width: number; height: number }
+
+const ASS_BOLD_WEIGHT = 800
+
+const buildStyleLine = (style: SubtitleStyle): string => {
+  const hasBox = style.bg.opacity > 0
+  const border = hasBox ? 3 : 1
+  const outlineSize = hasBox ? style.bg.padding : style.outline.width
+  const outlineColour = hasBox ? assColor(style.bg.color, style.bg.opacity) : assColor(style.outline.color)
+  const backColour = assColor(style.shadow.color, style.shadow.distance > 0 ? 0.6 : 0)
+  const flag = (on: boolean) => (on ? -1 : 0)
+  return [
+    'Style: Default',
+    style.font,
+    style.size,
+    assColor(style.color),
+    assColor(style.activeWordColor),
+    outlineColour,
+    backColour,
+    // libass reads values other than 0/±1 as a font weight; 800 matches the preview's ExtraBold.
+    style.bold ? ASS_BOLD_WEIGHT : 0,
+    flag(style.italic),
+    flag(style.underline),
+    0,
+    100,
+    100,
+    0,
+    0,
+    border,
+    outlineSize,
+    style.shadow.distance,
+    assAlignment(style),
+    40,
+    40,
+    style.marginV,
+    1,
+  ].join(',')
+}
+
+const growTag = '\\fscx85\\fscy85\\t(0,120,\\fscx100\\fscy100)'
+
+const cueEvents = (cue: Cue, style: SubtitleStyle): string[] => {
+  const prefix = (extra = '') => `${style.animation === 'growing' ? `{${growTag}${extra}}` : extra ? `{${extra}}` : ''}`
+  const words = cue.words.length > 0 ? cue.words : []
+  if (!style.highlightActiveWord || words.length === 0) {
+    return [
+      `Dialogue: 0,${toAssTime(cue.start)},${toAssTime(cue.end)},Default,,0,0,0,,${prefix()}${escapeAss(applyCase(cue.text, style.textCase))}`,
+    ]
+  }
+  return words.map((word, index) => {
+    const start = index === 0 ? cue.start : word.start
+    const next = words[index + 1]
+    const end = next ? next.start : cue.end
+    const body = words
+      .map((w, i) => {
+        const text = escapeAss(applyCase(w.text, style.textCase))
+        return i === index ? `{\\c${assOverrideColor(style.activeWordColor)}}${text}{\\c${assOverrideColor(style.color)}}` : text
+      })
+      .join(' ')
+    const lead = index === 0 ? prefix() : ''
+    return `Dialogue: 0,${toAssTime(start)},${toAssTime(end)},Default,,0,0,0,,${lead}${body}`
+  })
+}
+
+export const toAss = (cues: Cue[], style: SubtitleStyle, { width, height }: AssOptions): string =>
+  [
+    '[Script Info]',
+    'ScriptType: v4.00+',
+    `PlayResX: ${width}`,
+    `PlayResY: ${height}`,
+    'WrapStyle: 0',
+    'ScaledBorderAndShadow: yes',
+    '',
+    '[V4+ Styles]',
+    'Format: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackColour,Bold,Italic,Underline,StrikeOut,ScaleX,ScaleY,Spacing,Angle,BorderStyle,Outline,Shadow,Alignment,MarginL,MarginR,MarginV,Encoding',
+    buildStyleLine(style),
+    '',
+    '[Events]',
+    'Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text',
+    ...cues.flatMap((cue) => cueEvents(cue, style)),
+    '',
+  ].join('\n')
