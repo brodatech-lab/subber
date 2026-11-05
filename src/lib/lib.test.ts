@@ -92,6 +92,13 @@ describe('formats', () => {
     expect(ass).toMatch(/^Style: Box,.*,3,10,0,/m)
     expect(ass).toMatch(/^Style: Text,.*,1,0,0,/m)
   })
+  it('ass keeps backslashes in caption text literal', () => {
+    const cue = cueFromWords([{ text: 'C:\\nowy', start: 0, end: 1 }])
+    const ass = toAss([cue], { ...DEFAULT_STYLE, highlightActiveWord: false }, { width: 1080, height: 1920 })
+    const text = ass.split('\n').find((l) => l.includes(',Text,')) ?? ''
+    expect(text).not.toMatch(/\\[nNh]/)
+    expect(text).toContain('C:\\\u2060nowy')
+  })
   it('ass skips the background layer when the background is off', () => {
     const style = { ...DEFAULT_STYLE, bg: { ...DEFAULT_STYLE.bg, opacity: 0 } }
     const ass = toAss(cues, style, { width: 1080, height: 1920 })

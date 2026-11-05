@@ -2,6 +2,8 @@ import { create } from 'zustand'
 import { isTauri } from '@/lib/bridge'
 
 type ViewState = {
+  /** Mirrors the shared <video> element; the Preview organism keeps it in sync. */
+  playing: boolean
   fullscreen: boolean
   setFullscreen: (on: boolean) => void
   toggleFullscreen: () => void
@@ -26,6 +28,7 @@ const applyWindowFullscreen = async (on: boolean) => {
 }
 
 export const useView = create<ViewState>((set, get) => ({
+  playing: false,
   fullscreen: false,
   setFullscreen: (on) => {
     if (get().fullscreen === on) return

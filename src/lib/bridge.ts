@@ -17,15 +17,26 @@ export const pickVideo = async (): Promise<string | null> => {
 
 export const videoSrc = async (path: string): Promise<string> => {
   if (!isTauri()) return path
-  const { convertFileSrc } = await import('@tauri-apps/api/core')
+  const { convertFileSrc, invoke } = await import('@tauri-apps/api/core')
+  // The asset protocol starts with an empty scope; only files the user opened become readable.
+  await invoke('allow_video', { path })
   return convertFileSrc(path)
 }
+
+const VIDEO_INFO_TIMEOUT_MS = 20_000
 
 export const readVideoInfo = (path: string, src: string): Promise<VideoInfo> =>
   new Promise((resolve, reject) => {
     const probe = document.createElement('video')
     probe.preload = 'metadata'
-    const done = () => resolve({ path, width: probe.videoWidth, height: probe.videoHeight, duration: probe.duration })
+    const timer = window.setTimeout(() => {
+      probe.removeAttribute('src')
+      reject(new Error('Nie udało się odczytać długości filmu. Plik może być uszkodzony albo niepełny.'))
+    }, VIDEO_INFO_TIMEOUT_MS)
+    const done = () => {
+      window.clearTimeout(timer)
+      resolve({ path, width: probe.videoWidth, height: probe.videoHeight, duration: probe.duration })
+    }
     probe.onloadedmetadata = () => {
       if (Number.isFinite(probe.duration)) return done()
       // Some WebM files (e.g. browser recordings) have no duration in the header; seeking far forces the browser to find it.
@@ -36,7 +47,10 @@ export const readVideoInfo = (path: string, src: string): Promise<VideoInfo> =>
       }
       probe.currentTime = Number.MAX_SAFE_INTEGER
     }
-    probe.onerror = () => reject(new Error('Nie można odczytać pliku wideo. Sprawdź, czy format jest obsługiwany.'))
+    probe.onerror = () => {
+      window.clearTimeout(timer)
+      reject(new Error('Nie można odczytać pliku wideo. Sprawdź, czy format jest obsługiwany.'))
+    }
     probe.src = src
   })
 

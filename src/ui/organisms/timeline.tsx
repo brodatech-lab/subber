@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type FC, type PointerEvent as ReactPointerEvent } from 'react'
 import { Pause, Play, Redo2, Scissors, Undo2, ZoomIn, ZoomOut } from 'lucide-react'
 import { useProject } from '@/store/project'
+import { useView } from '@/store/view'
 import { seek, setRate, togglePlay } from '@/lib/player'
 import { toDisplayTime } from '@/lib/time'
 import { cn } from '@/lib/cn'
@@ -31,27 +32,24 @@ const rulerLabel = (t: number, step: number): string => {
 
 /* ------------------------------------------------------------------ */
 
-const Transport: FC<{ pps: number; onZoom: (pps: number) => void }> = ({ pps, onZoom }) => {
-  const [playing, setPlaying] = useState(false)
-  const [rate, setRateState] = useState(1)
+/** The only part of the transport bar that re-renders every frame during playback. */
+const TimeReadout: FC = () => {
   const playhead = useProject((s) => s.playhead)
   const duration = useProject((s) => s.video?.duration ?? 0)
+  return (
+    <div className="flex-1 text-center font-mono text-[13px] tabular-nums">
+      <span className="font-medium text-foreground">{toDisplayTime(playhead)}</span>
+      <span className="text-faint"> / {toDisplayTime(duration)}</span>
+    </div>
+  )
+}
+
+const Transport: FC<{ pps: number; onZoom: (pps: number) => void }> = ({ pps, onZoom }) => {
+  const playing = useView((s) => s.playing)
+  const [rate, setRateState] = useState(1)
   const canUndo = useProject((s) => s.past.length > 0)
   const canRedo = useProject((s) => s.future.length > 0)
   const { undo, redo, splitAt } = useProject.getState()
-
-  useEffect(() => {
-    const el = document.querySelector('video')
-    if (!el) return
-    const on = () => setPlaying(true)
-    const off = () => setPlaying(false)
-    el.addEventListener('play', on)
-    el.addEventListener('pause', off)
-    return () => {
-      el.removeEventListener('play', on)
-      el.removeEventListener('pause', off)
-    }
-  }, [duration])
 
   const cycleRate = () => {
     const next = RATES[(RATES.indexOf(rate) + 1) % RATES.length] ?? 1
@@ -78,10 +76,7 @@ const Transport: FC<{ pps: number; onZoom: (pps: number) => void }> = ({ pps, on
         <Redo2 className="size-3.5" /> Ponów
       </Button>
 
-      <div className="flex-1 text-center font-mono text-[13px] tabular-nums">
-        <span className="font-medium text-foreground">{toDisplayTime(playhead)}</span>
-        <span className="text-faint"> / {toDisplayTime(duration)}</span>
-      </div>
+      <TimeReadout />
 
       <div className="flex items-center gap-1">
         <Button intent="ghost" size="icon" aria-label="Oddal" onClick={() => onZoom(Math.max(MIN_PPS, pps / 1.4))}>
@@ -195,6 +190,27 @@ const Waveform: FC<{ peaks: Float32Array | null; pps: number; scrollLeft: number
 
 /* ------------------------------------------------------------------ */
 
+/**
+ * The playhead line and auto-scroll live in their own component: it is the only part of the timeline
+ * that follows the playhead every frame, so the blocks, ruler and waveform do not re-render during playback.
+ */
+const PlayheadLine: FC<{ pps: number; scrollRef: React.RefObject<HTMLDivElement | null> }> = ({ pps, scrollRef }) => {
+  const playhead = useProject((s) => s.playhead)
+
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const x = playhead * pps
+    if (x < el.scrollLeft || x > el.scrollLeft + el.clientWidth - 40) el.scrollLeft = Math.max(0, x - 80)
+  }, [playhead, pps, scrollRef])
+
+  return (
+    <div className="pointer-events-none absolute inset-y-0 w-px bg-playhead" style={{ left: playhead * pps }}>
+      <div className="absolute -top-px -left-[5px] h-3 w-[11px] rounded-b-[3px] bg-playhead" />
+    </div>
+  )
+}
+
 type TimelineProps = { peaks: Float32Array | null }
 
 export const Timeline: FC<TimelineProps> = ({ peaks }) => {
@@ -204,7 +220,6 @@ export const Timeline: FC<TimelineProps> = ({ peaks }) => {
   const scrollRef = useRef<HTMLDivElement>(null)
   const cues = useProject((s) => s.cues)
   const selectedId = useProject((s) => s.selectedId)
-  const playhead = useProject((s) => s.playhead)
   const duration = useProject((s) => s.video?.duration ?? 0)
   const contentWidth = Math.max(viewWidth, duration * pps + 120)
 
@@ -215,14 +230,6 @@ export const Timeline: FC<TimelineProps> = ({ peaks }) => {
     observer.observe(el)
     return () => observer.disconnect()
   }, [])
-
-  // Keep the playhead in view during playback.
-  useEffect(() => {
-    const el = scrollRef.current
-    if (!el) return
-    const x = playhead * pps
-    if (x < el.scrollLeft || x > el.scrollLeft + el.clientWidth - 40) el.scrollLeft = Math.max(0, x - 80)
-  }, [playhead, pps])
 
   const zoomAround = useCallback((next: number) => {
     const el = scrollRef.current
@@ -358,9 +365,7 @@ export const Timeline: FC<TimelineProps> = ({ peaks }) => {
                 <Waveform peaks={peaks} pps={pps} scrollLeft={scrollLeft} viewWidth={viewWidth} duration={duration} />
               </div>
             </div>
-            <div className="pointer-events-none absolute inset-y-0 w-px bg-playhead" style={{ left: playhead * pps }}>
-              <div className="absolute -top-px -left-[5px] h-3 w-[11px] rounded-b-[3px] bg-playhead" />
-            </div>
+            <PlayheadLine pps={pps} scrollRef={scrollRef} />
           </div>
         </div>
       </div>

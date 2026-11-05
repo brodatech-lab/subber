@@ -7,11 +7,22 @@ use tauri::ipc::Channel;
 use tauri::path::BaseDirectory;
 use tauri::{AppHandle, Manager};
 
-use crate::tools::{ffmpeg, hidden_command, log_error};
+use crate::tools::{TempPath, ffmpeg, hidden_command, log_error, unique_name};
 
 #[derive(Clone, Serialize)]
 pub struct ExportProgress {
     percent: f64,
+}
+
+/// Lets the webview stream exactly this video through the asset protocol. The static scope is empty,
+/// so the page cannot read any other file on disk.
+#[tauri::command]
+pub fn allow_video(app: AppHandle, path: String) -> Result<(), String> {
+    let file = Path::new(&path);
+    if !file.is_file() {
+        return Err(format!("Nie ma takiego pliku: {path}"));
+    }
+    app.asset_protocol_scope().allow_file(file).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -40,13 +51,13 @@ fn stage_fonts(fonts: &Path, work: &Path) -> Result<(), String> {
 fn burn(fonts: &Path, input: &str, output: &str, ass: &str, duration: f64, channel: &Channel<ExportProgress>) -> Result<(), String> {
     // The ass filter's path syntax is awkward on Windows (drive colons), so run ffmpeg inside a work dir
     // and reference the subtitle file and fonts by relative names.
-    let work = std::env::temp_dir().join(format!("subber-export-{}", std::process::id()));
-    std::fs::create_dir_all(&work).map_err(|e| e.to_string())?;
-    std::fs::write(work.join("subs.ass"), ass).map_err(|e| e.to_string())?;
-    stage_fonts(fonts, &work)?;
+    let work = TempPath::new(std::env::temp_dir().join(unique_name("subber-export")));
+    std::fs::create_dir_all(work.path()).map_err(|e| e.to_string())?;
+    std::fs::write(work.path().join("subs.ass"), ass).map_err(|e| e.to_string())?;
+    stage_fonts(fonts, work.path())?;
 
     let mut child = hidden_command(ffmpeg()?)
-        .current_dir(&work)
+        .current_dir(work.path())
         .args(["-y", "-hide_banner", "-nostats", "-progress", "pipe:1", "-i", input])
         .args(["-vf", "ass=subs.ass:fontsdir=fonts"])
         .args(["-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p"])
@@ -71,7 +82,6 @@ fn burn(fonts: &Path, input: &str, output: &str, ass: &str, duration: f64, chann
     }
     let status = child.wait().map_err(|e| e.to_string())?;
     let errors = stderr_thread.join().unwrap_or_default();
-    let _ = std::fs::remove_dir_all(&work);
     if !status.success() {
         let tail = errors.iter().rev().take(8).rev().cloned().collect::<Vec<_>>().join("\n");
         return Err(format!("Renderowanie wideo nie powiodło się.\n{tail}"));

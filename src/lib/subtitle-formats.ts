@@ -34,7 +34,15 @@ const assAlignment = (style: SubtitleStyle): number => {
   return row + col
 }
 
-const escapeAss = (text: string): string => text.replace(/[{}]/g, '').replace(/\r?\n/g, '\\N')
+/**
+ * Braces would open override blocks, and a backslash followed by n, N or h is a line break or hard space
+ * in ASS. A word joiner after each backslash keeps it literal without changing what the viewer sees.
+ */
+const escapeAss = (text: string): string =>
+  text
+    .replace(/[{}]/g, '')
+    .replace(/\\/g, '\\⁠')
+    .replace(/\r?\n/g, '\\N')
 
 export type AssOptions = { width: number; height: number }
 

@@ -12,6 +12,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             stt::transcribe,
             export::write_text_file,
+            export::allow_video,
             export::burn_subtitles,
             secrets::set_api_key,
             secrets::has_api_key,

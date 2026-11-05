@@ -130,6 +130,40 @@ pub fn log_error(app: &tauri::AppHandle, context: &str, message: &str) {
     }
 }
 
+/// A file or folder name no other running operation uses: process id, time and a counter.
+pub fn unique_name(prefix: &str) -> String {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or_default();
+    format!("{prefix}-{}-{nanos}-{}", std::process::id(), COUNTER.fetch_add(1, Ordering::Relaxed))
+}
+
+/// Deletes a temporary file or folder when it goes out of scope, so early returns on errors clean up too.
+pub struct TempPath(PathBuf);
+
+impl TempPath {
+    pub fn new(path: PathBuf) -> Self {
+        Self(path)
+    }
+
+    pub fn path(&self) -> &Path {
+        &self.0
+    }
+}
+
+impl Drop for TempPath {
+    fn drop(&mut self) {
+        if self.0.is_dir() {
+            let _ = std::fs::remove_dir_all(&self.0);
+        } else {
+            let _ = std::fs::remove_file(&self.0);
+        }
+    }
+}
+
 pub fn venv_python(venv: &Path) -> PathBuf {
     if cfg!(windows) { venv.join("Scripts").join("python.exe") } else { venv.join("bin").join("python") }
 }

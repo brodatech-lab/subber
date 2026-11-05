@@ -15,10 +15,13 @@ type Size = { width: number; height: number }
 const FRAME_GUTTER = 24
 const CONTROLS_HIDE_MS = 2200
 
-const useActiveCue = () => {
+/** The subtitle layer follows the playhead every frame; keeping it apart stops the whole preview re-rendering. */
+const LiveOverlay: FC<{ scale: number }> = ({ scale }) => {
   const cues = useProject((s) => s.cues)
   const time = useProject((s) => s.playhead)
-  return { cue: cues.find((c) => time >= c.start && time < c.end), time }
+  const style = useProject((s) => s.style)
+  const cue = cues.find((c) => time >= c.start && time < c.end)
+  return <SubtitleOverlay cue={cue} time={time} style={style} scale={scale} />
 }
 
 /** Largest frame with the video's aspect ratio that fits the stage, like object-fit: contain. */
@@ -40,19 +43,20 @@ const useContainedSize = (stage: HTMLElement | null, video: Size | null, gutter:
   return size
 }
 
-const usePlaying = (video: HTMLVideoElement | null) => {
-  const [playing, setPlaying] = useState(false)
+/** Publishes the element's play state to the view store, which the transport bars read. */
+const useSyncPlaying = (video: HTMLVideoElement | null) => {
   useEffect(() => {
     if (!video) return
-    const sync = () => setPlaying(!video.paused)
+    const sync = () => useView.setState({ playing: !video.paused })
+    sync()
     video.addEventListener('play', sync)
     video.addEventListener('pause', sync)
     return () => {
       video.removeEventListener('play', sync)
       video.removeEventListener('pause', sync)
+      useView.setState({ playing: false })
     }
   }, [video])
-  return playing
 }
 
 /** Controls fade out after the mouse rests, and come back on any movement. */
@@ -71,7 +75,8 @@ const useIdle = (active: boolean) => {
   return { idle: active && idle, wake }
 }
 
-const FullscreenBar: FC<{ playing: boolean; hidden: boolean }> = ({ playing, hidden }) => {
+const FullscreenBar: FC<{ hidden: boolean }> = ({ hidden }) => {
+  const playing = useView((s) => s.playing)
   const time = useProject((s) => s.playhead)
   const duration = useProject((s) => s.video?.duration ?? 0)
   const exit = useView((s) => s.setFullscreen)
@@ -101,13 +106,11 @@ export const Preview: FC<PreviewProps> = ({ src, onImport }) => {
   const [videoEl, setVideoEl] = useState<HTMLVideoElement | null>(null)
   const [stage, setStage] = useState<HTMLDivElement | null>(null)
   const video = useProject((s) => s.video)
-  const style = useProject((s) => s.style)
   const setPlayhead = useProject((s) => s.setPlayhead)
   const fullscreen = useView((s) => s.fullscreen)
   const toggleFullscreen = useView((s) => s.toggleFullscreen)
-  const { cue, time } = useActiveCue()
   const frame = useContainedSize(stage, video, fullscreen ? 0 : FRAME_GUTTER)
-  const playing = usePlaying(videoEl)
+  useSyncPlaying(videoEl)
   const { idle, wake } = useIdle(fullscreen)
 
   useEffect(() => {
@@ -180,11 +183,11 @@ export const Preview: FC<PreviewProps> = ({ src, onImport }) => {
           onDoubleClick={toggleFullscreen}
           className="size-full cursor-pointer object-contain"
         />
-        <SubtitleOverlay cue={cue} time={time} style={style} scale={frame ? frame.height / video.height : 1} />
+        <LiveOverlay scale={frame ? frame.height / video.height : 1} />
       </div>
 
       {fullscreen ? (
-        <FullscreenBar playing={playing} hidden={idle} />
+        <FullscreenBar hidden={idle} />
       ) : (
         <Button
           intent="secondary"

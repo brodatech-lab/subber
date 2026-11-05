@@ -49,14 +49,16 @@ const withHistory = (s: ProjectState, next: Partial<ProjectState>): Partial<Proj
   future: [],
 })
 
+/** Keeps a cue inside the gap between its neighbours; returns null when the gap is too small to hold a cue. */
 const clampTimes = (cues: Cue[], id: string, start: number, end: number, duration: number) => {
   const index = cues.findIndex((c) => c.id === id)
   const prev = cues[index - 1]
   const next = cues[index + 1]
   const lo = prev ? prev.end : 0
   const hi = next ? next.start : duration
+  if (hi - lo < MIN_CUE_SECONDS) return null
   const s = Math.min(Math.max(start, lo), hi - MIN_CUE_SECONDS)
-  const e = Math.max(Math.min(end, hi), s + MIN_CUE_SECONDS)
+  const e = Math.min(Math.max(end, s + MIN_CUE_SECONDS), hi)
   return { start: s, end: e }
 }
 
@@ -96,6 +98,7 @@ export const useProject = create<ProjectState & ProjectActions>((set, get) => ({
     set((s) => {
       const duration = s.video?.duration ?? Number.POSITIVE_INFINITY
       const t = clampTimes(s.cues, id, start, end, duration)
+      if (!t) return {}
       return {
         cues: s.cues.map((c) => {
           if (c.id !== id) return c

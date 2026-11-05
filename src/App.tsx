@@ -73,6 +73,7 @@ export const App: FC = () => {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
+  const loadToken = useRef(0)
   useShortcuts()
 
   useEffect(() => {
@@ -82,17 +83,21 @@ export const App: FC = () => {
   }, [toast])
 
   const load = useCallback(async (path: string, url: string, sizeBytes?: number) => {
+    // Each load gets a token; peaks that finish after a newer video was opened are dropped.
+    const token = ++loadToken.current
     try {
       const info = await readVideoInfo(path, url)
+      if (token !== loadToken.current) return
       useProject.getState().setVideo(info)
       setSrc(url)
       setPeaks(null)
       setDialogOpen(true)
       loadPeaks(path, url, sizeBytes)
-        .then(setPeaks)
-        .catch((e: unknown) =>
-          setToast(`Nie udało się narysować fali dźwięku. ${e instanceof Error ? e.message : String(e)}`),
-        )
+        .then((peaks) => token === loadToken.current && setPeaks(peaks))
+        .catch((e: unknown) => {
+          if (token !== loadToken.current) return
+          setToast(`Nie udało się narysować fali dźwięku. ${e instanceof Error ? e.message : String(e)}`)
+        })
     } catch (e) {
       setToast(e instanceof Error ? e.message : String(e))
     }

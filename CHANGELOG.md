@@ -8,6 +8,26 @@ Nowa wersja w Releases powstaje z tagu `v<wersja>`. Opis paczki to sekcja tej we
 
 ## Unreleased
 
+### Co zmieniono
+- Po otwarciu nowego filmu nie pojawia się już fala dźwięku z poprzedniego.
+- Błąd pobierania modelu, np. brak miejsca na dysku, nie udaje już braku CUDA i nie uruchamia drugiego pobierania na procesor.
+- Pliki tymczasowe transkrypcji i eksportu znikają także po błędzie, a dwie operacje naraz nie nadpisują sobie plików.
+- Ukośnik w napisie, np. `C:\nowy`, nie łamie linii w eksporcie ASS i MP4.
+- Przeciąganie napisu w wąskiej szczelinie nie nakłada go już na sąsiedni.
+- Uszkodzony plik wideo pokazuje błąd zamiast wiecznego czekania.
+- Odtwarzanie mniej obciąża procesor: co klatkę odświeża się tylko głowica, czas i napis w podglądzie.
+- Okno aplikacji ma dostęp tylko do filmów, które otworzysz, i ścisłe zasady bezpieczeństwa treści (CSP).
+
+### What changed
+- Opening a new video no longer shows the previous video's waveform.
+- A model download error, such as a full disk, no longer looks like missing CUDA or starts a second download for the CPU.
+- Temporary files from transcription and export are removed after errors too, and two operations at once no longer overwrite each other's files.
+- A backslash in a caption, such as `C:\nowy`, no longer breaks the line in ASS and MP4 export.
+- Dragging a caption into a narrow gap no longer overlaps the neighbouring one.
+- A broken video file shows an error instead of waiting forever.
+- Playback is lighter on the CPU: only the playhead, the time and the preview caption update every frame.
+- The app window can read only the videos you open, under a strict content security policy (CSP).
+
 ## 0.2.0 - 2026-11-05
 
 ### Co nowego

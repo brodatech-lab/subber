@@ -8,7 +8,9 @@ use tauri::AppHandle;
 
 use crate::engine;
 use crate::secrets;
-use crate::tools::{ffmpeg, hidden_command, log_error, system_ca_bundle, system_python, venv_python, with_system_ca};
+use crate::tools::{
+    TempPath, ffmpeg, hidden_command, log_error, system_ca_bundle, system_python, unique_name, venv_python, with_system_ca,
+};
 
 const WORKER_SOURCE: &str = include_str!("../../engine/stt_worker.py");
 
@@ -141,8 +143,8 @@ fn run_worker(app: &AppHandle, path: &str, config: &SttConfig, channel: &Channel
 fn run_engine(engine_dir: &Path, path: &str, config: &SttConfig, channel: &Channel<Progress>) -> Result<Vec<Word>, String> {
     let engine_dir = engine_dir.to_path_buf();
     report(channel, "Wyciąganie audio", 1.0);
-    let wav = engine::temp_dir(&engine_dir)?.join(format!("subber-{}.wav", std::process::id()));
-    extract_audio(path, &wav)?;
+    let wav = TempPath::new(engine::temp_dir(&engine_dir)?.join(format!("{}.wav", unique_name("subber"))));
+    extract_audio(path, wav.path())?;
 
     // Missing system roots is not fatal: Python then falls back to its own CA list.
     let ca = system_ca_bundle(&engine_dir).ok();
@@ -155,7 +157,7 @@ fn run_engine(engine_dir: &Path, path: &str, config: &SttConfig, channel: &Chann
     engine::apply_env(&mut cmd, &engine_dir)?;
     cmd.arg(&script)
         .args(["--engine", &config.engine, "--model", &config.model, "--language", &config.language, "--audio"])
-        .arg(&wav)
+        .arg(wav.path())
         .env("PYTHONUTF8", "1")
         .env("PYTHONIOENCODING", "utf-8")
         .env("PATH", cuda_path(&engine_dir.join("venv")))
@@ -189,7 +191,6 @@ fn run_engine(engine_dir: &Path, path: &str, config: &SttConfig, channel: &Chann
     }
     let status = child.wait().map_err(|e| e.to_string())?;
     let stderr_lines = stderr_thread.join().unwrap_or_default();
-    let _ = std::fs::remove_file(&wav);
 
     if let Some(message) = failure {
         return Err(message);

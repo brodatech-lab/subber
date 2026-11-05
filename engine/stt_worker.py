@@ -38,13 +38,24 @@ def audio_duration(path):
         return f.getnframes() / float(f.getframerate())
 
 
+GPU_ERROR_MARKERS = ("cuda", "cublas", "cudnn", "gpu", "no kernel image", "compute capability", "float16")
+
+
+def is_gpu_error(exc):
+    """Only GPU problems should fall back to the CPU. Disk full, network or missing model must surface."""
+    text = (type(exc).__name__ + " " + str(exc)).lower()
+    return any(marker in text for marker in GPU_ERROR_MARKERS)
+
+
 def run_faster_whisper(args):
     from faster_whisper import WhisperModel
 
     progress("Ładowanie modelu " + args.model, 5)
     try:
         model = WhisperModel(args.model, device="cuda", compute_type="float16")
-    except Exception:
+    except Exception as exc:
+        if not is_gpu_error(exc):
+            raise
         progress("Brak CUDA, przełączam na procesor", 8)
         model = WhisperModel(args.model, device="cpu", compute_type="int8")
     total = max(audio_duration(args.audio), 0.001)
@@ -71,7 +82,10 @@ def run_whisperx(args):
     progress("Ładowanie modelu " + args.model, 5)
     try:
         model = whisperx.load_model(args.model, device, compute_type="float16", language=language_arg(args.language))
-    except Exception:
+    except Exception as exc:
+        if not is_gpu_error(exc):
+            raise
+        progress("Brak CUDA, przełączam na procesor", 8)
         device = "cpu"
         model = whisperx.load_model(args.model, device, compute_type="int8", language=language_arg(args.language))
     audio = whisperx.load_audio(args.audio)
