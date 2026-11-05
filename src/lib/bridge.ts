@@ -89,6 +89,24 @@ export const saveTextFile = async (defaultName: string, extension: string, conte
   return defaultName
 }
 
+export type EngineLocation = { path: string; freeBytes: number | null; requiredBytes: number; installed: boolean }
+
+export const getEngineLocation = async (engine: string): Promise<EngineLocation | null> => {
+  if (!isTauri()) return null
+  const { invoke } = await import('@tauri-apps/api/core')
+  return invoke<EngineLocation>('engine_location', { engine })
+}
+
+/** Lets the user pick the engine folder; returns false when the picker was cancelled. */
+export const chooseEngineFolder = async (current: string): Promise<boolean> => {
+  const { open } = await import('@tauri-apps/plugin-dialog')
+  const { invoke } = await import('@tauri-apps/api/core')
+  const picked = await open({ directory: true, defaultPath: current, title: 'Folder silnika i modeli' })
+  if (typeof picked !== 'string') return false
+  await invoke('set_engine_location', { path: picked })
+  return true
+}
+
 export type CloudProvider = 'openai' | 'deepgram'
 
 export const hasApiKey = async (provider: CloudProvider): Promise<boolean> => {

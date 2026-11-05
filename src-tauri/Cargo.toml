@@ -21,6 +21,7 @@ tauri-plugin-dialog = "2"
 keyring = { version = "3", features = ["windows-native"] }
 rustls-native-certs = "0.8"
 base64 = "0.22"
+fs2 = "0.4"
 
 [profile.release]
 lto = true

@@ -1,7 +1,16 @@
-import { useEffect, useState, type FC } from 'react'
+import { useCallback, useEffect, useState, type FC } from 'react'
 import { X } from 'lucide-react'
 import { useProject } from '@/store/project'
-import { hasApiKey, setApiKey, transcribe, type CloudProvider, type TranscribeProgress } from '@/lib/bridge'
+import {
+  chooseEngineFolder,
+  getEngineLocation,
+  hasApiKey,
+  setApiKey,
+  transcribe,
+  type CloudProvider,
+  type EngineLocation,
+  type TranscribeProgress,
+} from '@/lib/bridge'
 import { regroupWords } from '@/lib/regroup'
 import type { SttEngineId } from '@/lib/types'
 import { Button } from '@/ui/atoms/button'
@@ -37,6 +46,59 @@ const ENGINES: Record<SttEngineId, { label: string; hint: string; models: string
     hint: 'Wymaga klucza API. Audio jest wysyłane do Deepgram.',
     models: ['nova-3', 'nova-2'],
   },
+}
+
+const formatGb = (bytes: number) => `${(bytes / 1024 ** 3).toFixed(1)} GB`
+
+const EngineFolderField: FC<{ engine: SttEngineId; disabled: boolean }> = ({ engine, disabled }) => {
+  const [location, setLocation] = useState<EngineLocation | null>(null)
+  const [message, setMessage] = useState<string | null>(null)
+
+  const refresh = useCallback(() => {
+    getEngineLocation(engine).then(setLocation, (e: unknown) => setMessage(String(e)))
+  }, [engine])
+  useEffect(refresh, [refresh])
+
+  if (!location) return null
+  const tooSmall = !location.installed && location.freeBytes !== null && location.freeBytes < location.requiredBytes
+
+  const change = async () => {
+    setMessage(null)
+    try {
+      if (await chooseEngineFolder(location.path)) refresh()
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  return (
+    <div className="grid gap-1.5">
+      <span className="flex justify-between text-xs text-muted">
+        Folder silnika i modeli
+        <span className={location.installed ? 'text-brand' : 'text-faint'}>
+          {location.installed ? 'zainstalowany' : `pobierze ok. ${formatGb(location.requiredBytes)}`}
+        </span>
+      </span>
+      <div className="flex gap-2">
+        <span
+          title={location.path}
+          className="flex h-10 min-w-0 flex-1 items-center truncate rounded-md border border-border bg-surface-raised px-3 font-mono text-[11px] select-text"
+        >
+          {location.path}
+        </span>
+        <Button size="lg" onClick={change} disabled={disabled}>
+          Zmień
+        </Button>
+      </div>
+      {location.freeBytes !== null && (
+        <span className={tooSmall ? 'text-[11px] text-danger' : 'text-[11px] text-faint'}>
+          Wolne na tym dysku: {formatGb(location.freeBytes)}
+          {tooSmall && '. Za mało, wybierz folder na innym dysku.'}
+        </span>
+      )}
+      {message && <span className="text-[11px] text-danger">{message}</span>}
+    </div>
+  )
 }
 
 const ApiKeyField: FC<{ provider: CloudProvider; disabled: boolean }> = ({ provider, disabled }) => {
@@ -193,6 +255,8 @@ export const AutoSubtitleDialog: FC<{ open: boolean; onClose: () => void }> = ({
         </label>
 
         {(stt.engine === 'openai' || stt.engine === 'deepgram') && <ApiKeyField provider={stt.engine} disabled={running} />}
+
+        <EngineFolderField engine={stt.engine} disabled={running} />
 
         <label className="grid gap-1.5 opacity-50">
           <span className="text-xs text-muted">Tłumaczenie</span>

@@ -4,8 +4,9 @@ use std::process::Stdio;
 
 use serde::{Deserialize, Serialize};
 use tauri::ipc::Channel;
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 
+use crate::engine;
 use crate::secrets;
 use crate::tools::{ffmpeg, hidden_command, log_error, system_ca_bundle, system_python, venv_python, with_system_ca};
 
@@ -71,15 +72,22 @@ fn run_checked(cmd: &mut std::process::Command, what: &str) -> Result<(), String
 fn ensure_engine(engine_dir: &Path, engine: &str, ca: Option<&Path>, channel: &Channel<Progress>) -> Result<PathBuf, String> {
     let venv = engine_dir.join("venv");
     let python = venv_python(&venv);
+    let marker = engine_dir.join(format!("installed-{engine}"));
+    if !marker.is_file() {
+        engine::check_space(engine_dir, engine)?;
+    }
+    let pip = |cmd: &mut std::process::Command| -> Result<(), String> {
+        engine::apply_env(cmd, engine_dir)?;
+        with_system_ca(cmd, ca);
+        Ok(())
+    };
     if !python.is_file() {
         report(channel, "Tworzenie środowiska silnika (jednorazowo)", 2.0);
         run_checked(hidden_command(system_python()?).args(["-m", "venv"]).arg(&venv), "Tworzenie środowiska Python")?;
-        run_checked(
-            with_system_ca(&mut hidden_command(&python), ca).args(["-m", "pip", "install", "--upgrade", "pip"]),
-            "Aktualizacja pip",
-        )?;
+        let mut cmd = hidden_command(&python);
+        pip(&mut cmd)?;
+        run_checked(cmd.args(["-m", "pip", "install", "--no-cache-dir", "--upgrade", "pip"]), "Aktualizacja pip")?;
     }
-    let marker = engine_dir.join(format!("installed-{engine}"));
     if !marker.is_file() {
         let groups = packages_for(engine)?;
         let count = groups.len() as f64;
@@ -89,10 +97,10 @@ fn ensure_engine(engine_dir: &Path, engine: &str, ca: Option<&Path>, channel: &C
                 "Instalowanie silnika, pierwsze uruchomienie może potrwać kilka minut",
                 3.0 + 5.0 * index as f64 / count,
             );
+            let mut cmd = hidden_command(&python);
+            pip(&mut cmd)?;
             run_checked(
-                with_system_ca(&mut hidden_command(&python), ca)
-                    .args(["-m", "pip", "install", "--disable-pip-version-check"])
-                    .args(group),
+                cmd.args(["-m", "pip", "install", "--disable-pip-version-check", "--no-cache-dir"]).args(group),
                 "Instalacja pakietów silnika",
             )?;
         }
@@ -125,11 +133,15 @@ fn extract_audio(video: &str, wav: &Path) -> Result<(), String> {
 }
 
 fn run_worker(app: &AppHandle, path: &str, config: &SttConfig, channel: &Channel<Progress>) -> Result<Vec<Word>, String> {
-    let engine_dir = app.path().app_data_dir().map_err(|e| e.to_string())?.join("engine");
-    std::fs::create_dir_all(&engine_dir).map_err(|e| e.to_string())?;
+    let engine_dir = engine::engine_dir(app)?;
+    std::fs::create_dir_all(&engine_dir).map_err(|e| format!("Nie mogę utworzyć folderu silnika {}: {e}", engine_dir.display()))?;
+    run_engine(&engine_dir, path, config, channel).map_err(|message| engine::explain_disk_full(message, &engine_dir))
+}
 
+fn run_engine(engine_dir: &Path, path: &str, config: &SttConfig, channel: &Channel<Progress>) -> Result<Vec<Word>, String> {
+    let engine_dir = engine_dir.to_path_buf();
     report(channel, "Wyciąganie audio", 1.0);
-    let wav = std::env::temp_dir().join(format!("subber-{}.wav", std::process::id()));
+    let wav = engine::temp_dir(&engine_dir)?.join(format!("subber-{}.wav", std::process::id()));
     extract_audio(path, &wav)?;
 
     // Missing system roots is not fatal: Python then falls back to its own CA list.
@@ -140,6 +152,7 @@ fn run_worker(app: &AppHandle, path: &str, config: &SttConfig, channel: &Channel
 
     let mut cmd = hidden_command(&python);
     with_system_ca(&mut cmd, ca.as_deref());
+    engine::apply_env(&mut cmd, &engine_dir)?;
     cmd.arg(&script)
         .args(["--engine", &config.engine, "--model", &config.model, "--language", &config.language, "--audio"])
         .arg(&wav)

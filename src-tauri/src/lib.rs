@@ -1,3 +1,4 @@
+mod engine;
 mod export;
 mod secrets;
 mod stt;
@@ -15,6 +16,8 @@ pub fn run() {
             secrets::set_api_key,
             secrets::has_api_key,
             waveform::waveform_peaks,
+            engine::engine_location,
+            engine::set_engine_location,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Subber");
