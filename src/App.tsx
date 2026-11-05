@@ -66,7 +66,9 @@ export const App: FC = () => {
       setDialogOpen(true)
       loadPeaks(path, url, sizeBytes)
         .then(setPeaks)
-        .catch(() => setToast('Nie udało się odczytać ścieżki audio do podglądu fali.'))
+        .catch((e: unknown) =>
+          setToast(`Nie udało się narysować fali dźwięku. ${e instanceof Error ? e.message : String(e)}`),
+        )
     } catch (e) {
       setToast(e instanceof Error ? e.message : String(e))
     }

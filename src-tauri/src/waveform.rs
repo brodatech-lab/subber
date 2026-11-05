@@ -46,9 +46,17 @@ fn peaks(path: &str) -> Result<Vec<f32>, String> {
         .args(["-hide_banner", "-loglevel", "error", "-i", path, "-vn", "-ac", "1"])
         .args(["-ar", &SAMPLE_RATE.to_string(), "-f", "s16le", "pipe:1"])
         .stdout(Stdio::piped())
-        .stderr(Stdio::null())
+        .stderr(Stdio::piped())
         .spawn()
         .map_err(|e| format!("Nie udało się uruchomić ffmpeg: {e}"))?;
+    let stderr = child.stderr.take();
+    let stderr_thread = std::thread::spawn(move || {
+        let mut text = String::new();
+        if let Some(mut s) = stderr {
+            let _ = s.read_to_string(&mut text);
+        }
+        text
+    });
 
     let mut reader = BufReader::with_capacity(1 << 16, child.stdout.take().ok_or("Brak wyjścia ffmpeg")?);
     let mut collector = PeakCollector::new(SAMPLE_RATE / PEAKS_PER_SECOND);
@@ -72,8 +80,13 @@ fn peaks(path: &str) -> Result<Vec<f32>, String> {
             collector.push(i16::from_le_bytes([pair[0], pair[1]]));
         }
     }
-    let _ = child.wait();
+    let status = child.wait().map_err(|e| e.to_string())?;
+    let errors = stderr_thread.join().unwrap_or_default();
     let mut result = collector.finish();
+    if !status.success() && result.is_empty() {
+        let reason = errors.lines().last().unwrap_or("brak szczegółów").trim().to_string();
+        return Err(format!("ffmpeg nie odczytał audio: {reason}"));
+    }
 
     let max = result.iter().copied().fold(0.0f32, f32::max);
     if max > 0.0 {

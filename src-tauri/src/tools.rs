@@ -27,15 +27,47 @@ fn find_on_path(name: &str) -> Option<PathBuf> {
     })
 }
 
-/// ffmpeg bundled next to the app executable (Tauri sidecar), otherwise the one on PATH.
+/// Places ffmpeg usually lands on Windows. Checked after PATH, because a terminal opened before
+/// installing ffmpeg keeps the old PATH and passes it on to the app.
+fn well_known_ffmpeg() -> Vec<PathBuf> {
+    let mut dirs = Vec::new();
+    if let Some(local) = std::env::var_os("LOCALAPPDATA") {
+        dirs.push(PathBuf::from(local).join("Microsoft").join("WinGet").join("Links"));
+    }
+    for var in ["ProgramFiles", "ProgramFiles(x86)"] {
+        if let Some(base) = std::env::var_os(var) {
+            dirs.push(PathBuf::from(base).join("ffmpeg").join("bin"));
+        }
+    }
+    dirs.push(PathBuf::from(r"C:\ffmpeg\bin"));
+    if let Some(profile) = std::env::var_os("USERPROFILE") {
+        dirs.push(PathBuf::from(profile).join("scoop").join("shims"));
+    }
+    dirs.into_iter().map(|dir| dir.join(exe_name("ffmpeg"))).collect()
+}
+
+/// In `tauri dev` the sidecar copy used for release builds lives in src-tauri/binaries.
+fn dev_sidecar() -> Option<PathBuf> {
+    if !cfg!(debug_assertions) {
+        return None;
+    }
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("binaries").join("ffmpeg-x86_64-pc-windows-msvc.exe");
+    path.is_file().then_some(path)
+}
+
+/// ffmpeg bundled next to the app executable (Tauri sidecar), then PATH, then the usual install folders.
 pub fn ffmpeg() -> Result<PathBuf, String> {
     let bundled = std::env::current_exe()
         .ok()
         .and_then(|exe| exe.parent().map(|dir| dir.join(exe_name("ffmpeg"))))
         .filter(|p| p.is_file());
-    bundled.or_else(|| find_on_path("ffmpeg")).ok_or_else(|| {
-        "Nie znaleziono ffmpeg. Zainstaluj go (np. `winget install Gyan.FFmpeg`) i uruchom aplikację ponownie.".to_string()
-    })
+    bundled
+        .or_else(dev_sidecar)
+        .or_else(|| find_on_path("ffmpeg"))
+        .or_else(|| well_known_ffmpeg().into_iter().find(|p| p.is_file()))
+        .ok_or_else(|| {
+            "Nie znaleziono ffmpeg. Zainstaluj go (np. `winget install Gyan.FFmpeg`) i uruchom aplikację ponownie.".to_string()
+        })
 }
 
 /// System Python used to create the engine virtualenv. `SUBBER_PYTHON` overrides it.
