@@ -68,38 +68,6 @@ Testy uruchomisz poleceniem `npm test`, a instalator zbudujesz za pomocą:
 npm run tauri build
 ```
 
-## Proces wydawania nowych wersji
-
-Zwykłe wypchnięcie zmian na gałąź `master` nie uruchamia procesu budowania. Instalator jest tworzony wyłącznie po wypchnięciu tagu wersji, np. `v0.2.0`. GitHub Actions buduje wtedy instalator zawierający ffmpeg i publikuje go w sekcji Releases.
-
-Opis wydania pochodzi z odpowiedniej sekcji pliku [CHANGELOG.md](CHANGELOG.md), dostępnej w języku polskim i angielskim. Bieżące zmiany należy dopisywać do sekcji `Unreleased`.
-
-Aby przygotować wydanie:
-
-1. Zaktualizuj numer wersji w plikach `package.json`, `src-tauri/tauri.conf.json` i `src-tauri/Cargo.toml`.
-2. Przenieś wpisy z sekcji `Unreleased` do sekcji nowej wersji w obu językach.
-3. Zacommituj i wypchnij zmiany, a następnie utwórz i wypchnij tag, np.:
-
-   ```bash
-   git tag v0.3.0 && git push origin v0.3.0
-   ```
-
-Jeśli tag nie odpowiada wersji projektu lub w pliku CHANGELOG.md brakuje sekcji dla danego wydania, workflow zostanie przerwany i wydanie nie zostanie opublikowane.
-
-## Architektura
-
-Subber wykorzystuje **Tauri 2**, **React** i **TypeScript** po stronie interfejsu oraz **Rust** po stronie logiki aplikacji.
-
-Rozpoznawanie mowy działa w osobnym procesie Pythona — [engine/stt_worker.py](engine/stt_worker.py). Proces otrzymuje plik audio i zwraca rozpoznane słowa wraz ze znacznikami czasu. Taki podział pozwala wymieniać silniki transkrypcji bez modyfikowania pozostałych części aplikacji. Do wypalania napisów wykorzystywany jest ffmpeg z biblioteką libass.
-
-Najważniejsze katalogi:
-
-- `src/lib` — formaty napisów, dzielenie słów na napisy i obsługa czasu
-- `src/ui` — interfejs użytkownika, zorganizowany w atomy, molekuły i organizmy
-- `src-tauri/src` — transkrypcja, eksport i obsługa kluczy API
-
-Klucze API OpenAI i Deepgram są przechowywane w Menedżerze poświadczeń systemu Windows, a nie w plikach aplikacji.
-
 ## Ograniczenia i planowane obszary rozwoju
 
 - Zaokrąglone tła napisów są widoczne w podglądzie, ale w wyeksportowanym MP4 mają kształt prostokąta. Wynika to ze sposobu renderowania teł przez format ASS.

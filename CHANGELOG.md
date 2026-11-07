@@ -8,6 +8,8 @@ Nowa wersja w Releases powstaje z tagu `v<wersja>`. Opis paczki to sekcja tej we
 
 ## Unreleased
 
+## 0.2.1 - 2026-11-07
+
 ### Co zmieniono
 - Po otwarciu nowego filmu nie pojawia się już fala dźwięku z poprzedniego.
 - Błąd pobierania modelu, np. brak miejsca na dysku, nie udaje już braku CUDA i nie uruchamia drugiego pobierania na procesor.

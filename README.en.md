@@ -68,38 +68,6 @@ Run the tests with `npm test`. Build the installer with:
 npm run tauri build
 ```
 
-## Release process
-
-Pushing ordinary commits to `master` does not trigger a build. An installer is built only when a version tag, such as `v0.2.0`, is pushed. GitHub Actions then builds the installer with ffmpeg bundled and publishes it to Releases.
-
-The release description is taken from the corresponding section in [CHANGELOG.md](CHANGELOG.md), which is maintained in Polish and English. Add ongoing changes to the `Unreleased` section.
-
-To prepare a release:
-
-1. Update the version in `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml`.
-2. Move the entries from `Unreleased` into the new version's section in both languages.
-3. Commit and push the changes, then create and push the version tag, for example:
-
-   ```bash
-   git tag v0.3.0 && git push origin v0.3.0
-   ```
-
-If the tag does not match the project version or the corresponding CHANGELOG.md section is missing, the workflow stops and no release is published.
-
-## Architecture
-
-Subber is built with **Tauri 2**, **React**, and **TypeScript** for the UI, with **Rust** handling the application logic.
-
-Speech recognition runs in a separate Python process: [engine/stt_worker.py](engine/stt_worker.py). It receives an audio file and returns recognized words with timestamps. This separation makes it possible to switch transcription engines without changing the rest of the application. Subtitles are burned into video using ffmpeg with libass.
-
-Key directories:
-
-- `src/lib` — subtitle formats, splitting words into subtitles, and time handling
-- `src/ui` — the user interface, organized into atoms, molecules, and organisms
-- `src-tauri/src` — transcription, export, and API key handling
-
-OpenAI and Deepgram API keys are stored in the Windows Credential Manager rather than in application files.
-
 ## Limitations and future work
 
 - Rounded subtitle backgrounds are visible in the preview, but appear as rectangular boxes in exported MP4 files. This is due to how the ASS format renders backgrounds.
