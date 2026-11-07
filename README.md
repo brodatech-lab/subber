@@ -2,82 +2,108 @@
 
 **Polski** · [English](README.en.md)
 
-Wrzucasz film, dostajesz napisy. Poprawiasz je na osi czasu, ustawiasz styl i eksportujesz.
+Subber to desktopowy edytor napisów do wideo. Umożliwia automatyczną transkrypcję, edycję napisów na osi czasu, dostosowanie ich wyglądu oraz eksport do popularnych formatów.
 
-Zrobiłem Subbera, bo miałem dość płacenia za edytory napisów w chmurze i wysyłania im każdego nagrania. Tu wszystko dzieje się na Twoim komputerze. Model Whisper liczy na karcie graficznej, plik nigdzie nie wychodzi.
+Aplikacja powstała jako alternatywa dla chmurowych edytorów napisów, które wymagają przesyłania nagrań na zewnętrzne serwery. W Subberze przetwarzanie odbywa się lokalnie — domyślnie model Whisper korzysta z GPU, a pliki pozostają na komputerze użytkownika.
 
-## Co potrafi
+## Funkcje
 
-- Sam rozpoznaje mowę. Domyślnie faster-whisper large-v3 na GPU. Do wyboru masz też WhisperX, a jak wolisz chmurę, OpenAI albo Deepgram.
-- Układa napisy na osi czasu obok fali dźwięku. Bloki przesuwasz, rozciągasz i tniesz klawiszem S.
-- Tekst i czasy poprawiasz też w liście po lewej. Ctrl+Z cofa wszystko.
-- Pilnuje, żeby jeden napis nie łapał końca jednego zdania i początku drugiego. Inaczej tekst zaczyna się spóźniać za głosem.
-- Podświetla słowo, które właśnie pada. Jak w rolkach.
-- Styl ustawiasz w panelu po prawej: czcionka, kolor, tło, obrys, cień, animacja. Ulubiony zapisujesz jako preset.
-- Eksportuje SRT, VTT, ASS albo od razu MP4 z wypalonymi napisami. Pionowe 9:16 też.
+- **Automatyczna transkrypcja** — domyślnie faster-whisper large-v3 z wykorzystaniem GPU. Dostępne są również WhisperX oraz usługi chmurowe OpenAI i Deepgram.
+- **Edycja na osi czasu** — napisy są wyświetlane obok przebiegu fali dźwiękowej. Można je przesuwać, zmieniać ich długość i dzielić klawiszem `S`.
+- **Edycja tekstu i znaczników czasu** — treść oraz czasy napisów można poprawiać na liście po lewej stronie. Obsługiwane są operacje cofania i ponawiania (`Ctrl+Z`, `Ctrl+Y`).
+- **Kontrola podziału napisów** — aplikacja zapobiega łączeniu końca jednego zdania z początkiem następnego w obrębie pojedynczego napisu.
+- **Podświetlanie aktualnie wypowiadanego słowa** — ułatwia tworzenie napisów w stylu popularnym w krótkich materiałach wideo.
+- **Dostosowanie wyglądu** — panel stylizacji pozwala zmieniać czcionkę, kolor, tło, obrys, cień i animację. Ustawienia można zapisywać jako presety.
+- **Eksport** — dostępne formaty to SRT, VTT i ASS, a także MP4 z wypalonymi napisami. Obsługiwane są również materiały pionowe w proporcjach 9:16.
 
-Na moim filmie 55 sekund pionowego wideo wypala się w niecałe 4 sekundy.
+W przeprowadzonym teście wypalenie napisów w 55-sekundowym materiale pionowym zajęło mniej niż 4 sekundy.
 
 ## Instalacja
 
-Gotowy instalator jest w [Releases](https://github.com/brodatech-lab/subber/releases). ffmpeg jest w środku.
+Pobierz instalator z sekcji [Releases](https://github.com/brodatech-lab/subber/releases). Instalator zawiera ffmpeg.
 
-Potrzebujesz jeszcze Pythona 3.10 lub nowszego. Przy pierwszej transkrypcji Subber sam stawia sobie środowisko i ściąga model. To jednorazowo kilka GB, więc nie zdziw się, że pierwszy raz trwa dłużej.
+Do działania aplikacji wymagany jest również **Python 3.10 lub nowszy**. Przy pierwszej transkrypcji Subber automatycznie przygotowuje własne środowisko i pobiera model. Pobranie obejmuje kilka GB danych, dlatego pierwsze uruchomienie transkrypcji może potrwać dłużej.
 
-Karta NVIDIA z CUDA 12 bardzo pomaga. Bez niej też zadziała, tylko na procesorze i wolniej.
+Karta graficzna **NVIDIA obsługująca CUDA 12** znacząco przyspiesza przetwarzanie. Aplikacja działa również bez niej, wykorzystując CPU, ale transkrypcja trwa wtedy dłużej.
 
-Masz Nortona, Avasta albo firmowe proxy? Nic nie musisz robić. Subber bierze certyfikaty z Windowsa, więc ich skanowanie HTTPS nie blokuje pobierania.
+Subber korzysta z magazynu certyfikatów systemu Windows. Dzięki temu skanowanie HTTPS przez programy takie jak Norton i Avast oraz firmowe serwery proxy nie powinny zakłócać pobierania.
 
-## Skróty
+## Skróty klawiszowe
 
-| Klawisz | Co robi |
+| Klawisz | Działanie |
 | --- | --- |
-| Spacja | start / pauza |
-| S | tnie napis w miejscu głowicy |
-| Ctrl+Z, Ctrl+Y | cofnij, ponów |
-| Delete | usuwa zaznaczony napis |
-| ← → | głowica o 0,1 s, z Shiftem o 1 s |
-| Ctrl + kółko | zoom osi czasu |
+| `Spacja` | Odtwarzanie / pauza |
+| `S` | Podział napisu w miejscu głowicy odtwarzania |
+| `Ctrl+Z` / `Ctrl+Y` | Cofnij / ponów |
+| `Delete` | Usuń zaznaczony napis |
+| `←` / `→` | Przesuń głowicę o 0,1 s; z `Shift` — o 1 s |
+| `Ctrl` + kółko myszy | Przybliżanie / oddalanie osi czasu |
 
 ## Budowanie ze źródeł
 
-Potrzebujesz Node 20+, Rusta i ffmpeg w PATH.
+Wymagane narzędzia:
+
+- Node.js 20 lub nowszy
+- Rust
+- ffmpeg dostępny w zmiennej `PATH`
+
+Uruchomienie aplikacji w trybie deweloperskim:
 
 ```bash
 npm install
 npm run tauri dev
 ```
 
-Sam interfejs odpalisz w przeglądarce przez `npm run dev`. Transkrypcja jest wtedy udawana, ale cały edytor działa.
+Aby uruchomić sam interfejs w przeglądarce, użyj:
 
-Testy uruchamiasz przez `npm test`, a instalator budujesz przez `npm run tauri build`.
+```bash
+npm run dev
+```
 
-## Wydania
+W tym trybie transkrypcja jest symulowana, natomiast edytor pozostaje w pełni funkcjonalny.
 
-Zwykłe pushe na `master` niczego nie budują. Paczka powstaje tylko z tagu wersji, na przykład `v0.2.0`. Wtedy GitHub Actions buduje instalator z ffmpeg w środku i wrzuca go do Releases.
+Testy uruchomisz poleceniem `npm test`, a instalator zbudujesz za pomocą:
 
-Opis paczki to sekcja tej wersji w [CHANGELOG.md](CHANGELOG.md), po polsku i po angielsku. Zmiany dopisuję na bieżąco do `Unreleased`. Przy wydaniu robię tak:
+```bash
+npm run tauri build
+```
 
-1. Podbijam wersję w `package.json`, `src-tauri/tauri.conf.json` i `src-tauri/Cargo.toml`.
-2. Przenoszę `Unreleased` pod nowy numer, w obu językach.
-3. Commituję, wypycham i dodaję tag: `git tag v0.3.0 && git push origin v0.3.0`.
+## Proces wydawania nowych wersji
 
-Jeśli tag nie zgadza się z wersją albo w CHANGELOG brakuje sekcji, workflow się zatrzyma i nic nie wyda.
+Zwykłe wypchnięcie zmian na gałąź `master` nie uruchamia procesu budowania. Instalator jest tworzony wyłącznie po wypchnięciu tagu wersji, np. `v0.2.0`. GitHub Actions buduje wtedy instalator zawierający ffmpeg i publikuje go w sekcji Releases.
 
-## Jak to jest zbudowane
+Opis wydania pochodzi z odpowiedniej sekcji pliku [CHANGELOG.md](CHANGELOG.md), dostępnej w języku polskim i angielskim. Bieżące zmiany należy dopisywać do sekcji `Unreleased`.
 
-Tauri 2, React i TypeScript z przodu, Rust pod spodem. Rozpoznawaniem mowy zajmuje się osobny proces w Pythonie, [engine/stt_worker.py](engine/stt_worker.py). Dostaje plik audio i zwraca słowa z czasami. Dzięki temu silniki da się podmieniać bez ruszania reszty. Napisy wypala ffmpeg z libass.
+Aby przygotować wydanie:
 
-- `src/lib`: formaty napisów, dzielenie słów na napisy, czas
-- `src/ui`: interfejs, podzielony na atomy, molekuły i organizmy
-- `src-tauri/src`: transkrypcja, eksport, klucze API
+1. Zaktualizuj numer wersji w plikach `package.json`, `src-tauri/tauri.conf.json` i `src-tauri/Cargo.toml`.
+2. Przenieś wpisy z sekcji `Unreleased` do sekcji nowej wersji w obu językach.
+3. Zacommituj i wypchnij zmiany, a następnie utwórz i wypchnij tag, np.:
 
-Klucze do OpenAI i Deepgrama trzymam w Menedżerze poświadczeń Windows, nie w plikach.
+   ```bash
+   git tag v0.3.0 && git push origin v0.3.0
+   ```
 
-## Czego jeszcze nie ma
+Jeśli tag nie odpowiada wersji projektu lub w pliku CHANGELOG.md brakuje sekcji dla danego wydania, workflow zostanie przerwany i wydanie nie zostanie opublikowane.
 
-- Zaokrąglone tło widać tylko w podglądzie. W gotowym MP4 jest prostokątne, bo tak rysuje je format ASS. Wiem, jak to obejść, jeszcze tego nie zrobiłem.
-- Tłumaczenie napisów na inne języki.
-- Na razie tylko Windows.
+## Architektura
 
-Co się zmienia między wersjami, znajdziesz w [CHANGELOG.md](CHANGELOG.md).
+Subber wykorzystuje **Tauri 2**, **React** i **TypeScript** po stronie interfejsu oraz **Rust** po stronie logiki aplikacji.
+
+Rozpoznawanie mowy działa w osobnym procesie Pythona — [engine/stt_worker.py](engine/stt_worker.py). Proces otrzymuje plik audio i zwraca rozpoznane słowa wraz ze znacznikami czasu. Taki podział pozwala wymieniać silniki transkrypcji bez modyfikowania pozostałych części aplikacji. Do wypalania napisów wykorzystywany jest ffmpeg z biblioteką libass.
+
+Najważniejsze katalogi:
+
+- `src/lib` — formaty napisów, dzielenie słów na napisy i obsługa czasu
+- `src/ui` — interfejs użytkownika, zorganizowany w atomy, molekuły i organizmy
+- `src-tauri/src` — transkrypcja, eksport i obsługa kluczy API
+
+Klucze API OpenAI i Deepgram są przechowywane w Menedżerze poświadczeń systemu Windows, a nie w plikach aplikacji.
+
+## Ograniczenia i planowane obszary rozwoju
+
+- Zaokrąglone tła napisów są widoczne w podglądzie, ale w wyeksportowanym MP4 mają kształt prostokąta. Wynika to ze sposobu renderowania teł przez format ASS.
+- Aplikacja nie obsługuje jeszcze tłumaczenia napisów.
+- Obecnie dostępna jest wyłącznie wersja dla systemu Windows.
+
+Historia zmian znajduje się w pliku [CHANGELOG.md](CHANGELOG.md).

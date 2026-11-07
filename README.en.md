@@ -2,82 +2,108 @@
 
 [Polski](README.md) · **English**
 
-Drop in a video and get subtitles back. Fix them on the timeline, style them, export.
+Subber is a desktop video subtitle editor. It provides speech transcription, timeline-based subtitle editing, styling, and export to common subtitle and video formats.
 
-I built Subber because I was tired of paying for cloud caption editors and uploading every recording to them. Here everything runs on your machine. Whisper runs on your GPU and the file never leaves your disk.
+The project was created as an alternative to cloud-based subtitle editors that require recordings to be uploaded to external servers. Subber processes files locally: by default, Whisper runs on the GPU, and recordings stay on the user's computer.
 
-## What it does
+## Features
 
-- Transcribes speech. faster-whisper large-v3 on the GPU by default. WhisperX is there too, and OpenAI or Deepgram if you prefer the cloud.
-- Puts the captions on a timeline next to the waveform. Drag them, stretch them, cut them with S.
-- Lets you fix text and times in the list on the left. Ctrl+Z undoes everything.
-- Never lets one caption hold the end of one sentence and the start of the next. Otherwise the text starts falling behind the voice.
-- Highlights the word being spoken, like in short-form videos.
-- Styles from the right panel: font, color, background, outline, shadow, animation. Save a look as a preset.
-- Exports SRT, VTT, ASS, or an MP4 with burned-in captions. Vertical 9:16 works.
+- **Automatic transcription** — faster-whisper large-v3 runs on the GPU by default. WhisperX is also available, as are the cloud services OpenAI and Deepgram.
+- **Timeline editing** — subtitles appear alongside the audio waveform. Move and resize subtitle blocks, or split them at the playhead by pressing `S`.
+- **Text and timestamp editing** — edit subtitle content and timing in the list on the left. Undo and redo are supported (`Ctrl+Z`, `Ctrl+Y`).
+- **Subtitle segmentation** — Subber prevents a single subtitle from containing the end of one sentence and the beginning of the next.
+- **Active-word highlighting** — highlights the word currently being spoken, a style commonly used in short-form videos.
+- **Subtitle styling** — adjust the font, text color, background, outline, shadow, and animation in the styling panel. Save configurations as presets.
+- **Export** — export to SRT, VTT, or ASS, or create an MP4 with burned-in subtitles. Vertical 9:16 video is supported.
 
-On my test video, 55 seconds of vertical footage burns in under 4 seconds.
+In one test, burning subtitles into a 55-second vertical video took less than 4 seconds.
 
-## Install
+## Installation
 
-Grab the installer from [Releases](https://github.com/brodatech-lab/subber/releases). It ships with ffmpeg.
+Download the installer from [Releases](https://github.com/brodatech-lab/subber/releases). The installer includes ffmpeg.
 
-You also need Python 3.10 or newer. On the first transcription Subber sets up its own environment and downloads the model. That is a one-time download of a few GB, so the first run takes longer.
+**Python 3.10 or newer** is also required. During the first transcription, Subber creates its own environment and downloads the model. This is a one-time download of several gigabytes, so the initial setup may take longer.
 
-An NVIDIA card with CUDA 12 helps a lot. Without one it still works on the CPU, just slower.
+An **NVIDIA GPU with CUDA 12 support** can significantly speed up processing. Subber also works without one, using the CPU instead, but transcription will be slower.
 
-Running Norton, Avast or a corporate proxy? Nothing to do. Subber uses the Windows certificate store, so their HTTPS scanning does not break downloads.
+Subber uses the Windows certificate store. As a result, HTTPS inspection by tools such as Norton and Avast, as well as corporate proxies, should not interfere with downloads.
 
-## Shortcuts
+## Keyboard shortcuts
 
-| Key | What it does |
+| Key | Action |
 | --- | --- |
-| Space | play / pause |
-| S | cut the caption at the playhead |
-| Ctrl+Z, Ctrl+Y | undo, redo |
-| Delete | delete the selected caption |
-| ← → | move the playhead 0.1 s, 1 s with Shift |
-| Ctrl + wheel | zoom the timeline |
+| `Space` | Play / pause |
+| `S` | Split the subtitle at the playhead |
+| `Ctrl+Z` / `Ctrl+Y` | Undo / redo |
+| `Delete` | Delete the selected subtitle |
+| `←` / `→` | Move the playhead by 0.1 s; hold `Shift` to move by 1 s |
+| `Ctrl` + mouse wheel | Zoom the timeline in / out |
 
 ## Build from source
 
-You need Node 20+, Rust and ffmpeg on PATH.
+Requirements:
+
+- Node.js 20 or newer
+- Rust
+- ffmpeg available on `PATH`
+
+To install dependencies and start the Tauri development build:
 
 ```bash
 npm install
 npm run tauri dev
 ```
 
-`npm run dev` runs the UI alone in a browser. Transcription is faked there, the editor works fully.
+To run the UI alone in a browser:
 
-`npm test` runs the tests, `npm run tauri build` builds the installer.
+```bash
+npm run dev
+```
 
-## Releases
+Transcription is simulated in this mode; the editor itself remains fully functional.
 
-Ordinary pushes to `master` build nothing. A package comes only from a version tag such as `v0.2.0`. Then GitHub Actions builds the installer with ffmpeg inside and publishes it to Releases.
+Run the tests with `npm test`. Build the installer with:
 
-The release description is that version's section of [CHANGELOG.md](CHANGELOG.md), in Polish and English. Changes go into `Unreleased` as they happen. To release:
+```bash
+npm run tauri build
+```
 
-1. Bump the version in `package.json`, `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml`.
-2. Move `Unreleased` under the new number, in both languages.
-3. Commit, push and tag: `git tag v0.3.0 && git push origin v0.3.0`.
+## Release process
 
-If the tag does not match the version or the CHANGELOG section is missing, the workflow stops and releases nothing.
+Pushing ordinary commits to `master` does not trigger a build. An installer is built only when a version tag, such as `v0.2.0`, is pushed. GitHub Actions then builds the installer with ffmpeg bundled and publishes it to Releases.
 
-## How it is built
+The release description is taken from the corresponding section in [CHANGELOG.md](CHANGELOG.md), which is maintained in Polish and English. Add ongoing changes to the `Unreleased` section.
 
-Tauri 2, React and TypeScript on top, Rust underneath. Speech recognition runs in a separate Python process, [engine/stt_worker.py](engine/stt_worker.py). It takes an audio file and returns words with timestamps, so engines can be swapped without touching the rest. ffmpeg with libass burns the captions in.
+To prepare a release:
 
-- `src/lib`: subtitle formats, splitting words into captions, time
-- `src/ui`: the interface, split into atoms, molecules and organisms
-- `src-tauri/src`: transcription, export, API keys
+1. Update the version in `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml`.
+2. Move the entries from `Unreleased` into the new version's section in both languages.
+3. Commit and push the changes, then create and push the version tag, for example:
 
-OpenAI and Deepgram keys live in the Windows Credential Manager, not in files.
+   ```bash
+   git tag v0.3.0 && git push origin v0.3.0
+   ```
 
-## Not there yet
+If the tag does not match the project version or the corresponding CHANGELOG.md section is missing, the workflow stops and no release is published.
 
-- Rounded caption backgrounds only show in the preview. The exported MP4 gets a square box, because that is how the ASS format draws it. I know the workaround, just have not built it yet.
-- Translation.
-- Platforms other than Windows.
+## Architecture
 
-Changes between versions are in [CHANGELOG.md](CHANGELOG.md).
+Subber is built with **Tauri 2**, **React**, and **TypeScript** for the UI, with **Rust** handling the application logic.
+
+Speech recognition runs in a separate Python process: [engine/stt_worker.py](engine/stt_worker.py). It receives an audio file and returns recognized words with timestamps. This separation makes it possible to switch transcription engines without changing the rest of the application. Subtitles are burned into video using ffmpeg with libass.
+
+Key directories:
+
+- `src/lib` — subtitle formats, splitting words into subtitles, and time handling
+- `src/ui` — the user interface, organized into atoms, molecules, and organisms
+- `src-tauri/src` — transcription, export, and API key handling
+
+OpenAI and Deepgram API keys are stored in the Windows Credential Manager rather than in application files.
+
+## Limitations and future work
+
+- Rounded subtitle backgrounds are visible in the preview, but appear as rectangular boxes in exported MP4 files. This is due to how the ASS format renders backgrounds.
+- Subtitle translation is not currently supported.
+- Subber is currently available for Windows only.
+
+See [CHANGELOG.md](CHANGELOG.md) for changes between versions.
